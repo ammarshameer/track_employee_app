@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Employee Tracking</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .sidebar .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            border-radius: 10px;
+            margin: 5px 0;
+        }
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+        .main-content {
+            background-color: #f8f9fa;
+            min-height: 100vh;
+        }
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .stat-card .card-body {
+            padding: 2rem;
+        }
+        #map {
+            height: 400px;
+            border-radius: 15px;
+        }
+        .employee-card {
+            transition: transform 0.2s;
+        }
+        .employee-card:hover {
+            transform: translateY(-5px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 px-0">
+                <div class="sidebar p-3">
+                    <div class="text-center mb-4">
+                        <i class="fas fa-map-marked-alt fa-3x text-white mb-3"></i>
+                        <h5 class="text-white">Employee Tracking</h5>
+                        <small class="text-white-50">Admin Panel</small>
+                    </div>
+                    
+                    <nav class="nav flex-column">
+                        <a class="nav-link active" href="#" data-section="overview">
+                            <i class="fas fa-tachometer-alt me-2"></i>Overview
+                        </a>
+                        <a class="nav-link" href="#" data-section="employees">
+                            <i class="fas fa-users me-2"></i>Employees
+                        </a>
+                        <a class="nav-link" href="#" data-section="tracking">
+                            <i class="fas fa-map-marker-alt me-2"></i>Live Tracking
+                        </a>
+                        <a class="nav-link" href="#" data-section="attendance">
+                            <i class="fas fa-calendar-check me-2"></i>Attendance
+                        </a>
+                        <a class="nav-link" href="#" data-section="payroll">
+                            <i class="fas fa-money-bill-wave me-2"></i>Payroll
+                        </a>
+                    </nav>
+                    
+                    <div class="mt-auto pt-4">
+                        <div class="text-center">
+                            <div class="text-white-50 mb-2">
+                                <i class="fas fa-user-circle fa-2x"></i>
+                            </div>
+                            <small class="text-white" id="adminName">Admin User</small>
+                            <br>
+                            <button class="btn btn-outline-light btn-sm mt-2" onclick="logout()">
+                                <i class="fas fa-sign-out-alt me-1"></i>Logout
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Main Content -->
+            <div class="col-md-9 col-lg-10">
+                <div class="main-content p-4">
+                    <!-- Header -->
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2 id="pageTitle">Dashboard Overview</h2>
+                        <div class="text-muted">
+                            <i class="fas fa-calendar me-1"></i>
+                            <span id="currentDate"></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Overview Section -->
+                    <div id="overviewSection">
+                        <!-- Stats Cards -->
+                        <div class="row mb-4">
+                            <div class="col-md-3 mb-3">
+                                <div class="card stat-card">
+                                    <div class="card-body text-center">
+                                        <i class="fas fa-users fa-2x mb-3"></i>
+                                        <h3 id="totalEmployees">0</h3>
+                                        <p class="mb-0">Total Employees</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="card stat-card">
+                                    <div class="card-body text-center">
+                                        <i class="fas fa-user-check fa-2x mb-3"></i>
+                                        <h3 id="activeEmployees">0</h3>
+                                        <p class="mb-0">Active Today</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="card stat-card">
+                                    <div class="card-body text-center">
+                                        <i class="fas fa-map-marker-alt fa-2x mb-3"></i>
+                                        <h3 id="trackingUpdates">0</h3>
+                                        <p class="mb-0">GPS Updates</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="card stat-card">
+                                    <div class="card-body text-center">
+                                        <i class="fas fa-clock fa-2x mb-3"></i>
+                                        <h3 id="avgWorkHours">0</h3>
+                                        <p class="mb-0">Avg Work Hours</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Quick Actions -->
+                        <div class="row">
+                            <div class="col-md-6 mb-4">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">
+                                            <i class="fas fa-user-plus me-2"></i>Quick Actions
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <button class="btn btn-primary me-2 mb-2" onclick="showAddEmployeeModal()">
+                                            <i class="fas fa-user-plus me-1"></i>Add Employee
+                                        </button>
+                                        <button class="btn btn-info me-2 mb-2" onclick="showSection('tracking')">
+                                            <i class="fas fa-map me-1"></i>View Live Tracking
+                                        </button>
+                                        <button class="btn btn-success me-2 mb-2" onclick="showSection('attendance')">
+                                            <i class="fas fa-calendar me-1"></i>Check Attendance
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-4">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">
+                                            <i class="fas fa-chart-line me-2"></i>Today's Summary
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row text-center">
+                                            <div class="col-6">
+                                                <h4 class="text-success" id="presentToday">0</h4>
+                                                <small class="text-muted">Present</small>
+                                            </div>
+                                            <div class="col-6">
+                                                <h4 class="text-danger" id="absentToday">0</h4>
+                                                <small class="text-muted">Absent</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Employees Section -->
+                    <div id="employeesSection" class="d-none">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h4>Employee Management</h4>
+                            <button class="btn btn-primary" onclick="showAddEmployeeModal()">
+                                <i class="fas fa-user-plus me-1"></i>Add Employee
+                            </button>
+                        </div>
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover" id="employeesTable">
+                                        <thead>
+                                            <tr>
+                                                <th>Employee ID</th>
+                                                <th>Name</th>
+                                                <th>Department</th>
+                                                <th>Position</th>
+                                                <th>Status</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="employeesTableBody">
+                                            <!-- Employee data will be loaded here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Live Tracking Section -->
+                    <div id="trackingSection" class="d-none">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <h4>Live Employee Tracking</h4>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="employeeSearch" placeholder="Enter Employee ID">
+                                    <input type="date" class="form-control" id="trackingDate" value="">
+                                    <button class="btn btn-primary" onclick="searchEmployeeLocation()">
+                                        <i class="fas fa-search"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-body">
+                                <div id="map"></div>
+                            </div>
+                        </div>
+                        <div class="mt-3" id="locationDetails">
+                            <!-- Location details will be shown here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Attendance Section -->
+                    <div id="attendanceSection" class="d-none">
+                        <h4 class="mb-3">Attendance Records</h4>
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <input type="date" class="form-control" id="attendanceDate" value="">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <input type="text" class="form-control" id="attendanceEmployeeSearch" placeholder="Employee ID (optional)">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <button class="btn btn-primary" onclick="loadAttendanceData()">
+                                            <i class="fas fa-search me-1"></i>Search
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-hover" id="attendanceTable">
+                                        <thead>
+                                            <tr>
+                                                <th>Employee ID</th>
+                                                <th>Name</th>
+                                                <th>Login Time</th>
+                                                <th>Logout Time</th>
+                                                <th>Total Hours</th>
+                                                <th>Status</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="attendanceTableBody">
+                                            <!-- Attendance data will be loaded here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Payroll Section -->
+                    <div id="payrollSection" class="d-none">
+                        <h4 class="mb-3">Payroll Overview</h4>
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-3">
+                                        <label class="form-label">Start Date</label>
+                                        <input type="date" class="form-control" id="payrollStartDate" />
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">End Date</label>
+                                        <input type="date" class="form-control" id="payrollEndDate" />
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Employee ID (optional)</label>
+                                        <input type="text" class="form-control" id="payrollEmployeeSearch" placeholder="EMPxxxx" />
+                                    </div>
+                                    <div class="col-md-3">
+                                        <button class="btn btn-primary w-100" onclick="loadPayroll()">
+                                            <i class="fas fa-calculator me-1"></i>Generate Payroll
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover" id="payrollTable">
+                                        <thead>
+                                            <tr>
+                                                <th>Employee ID</th>
+                                                <th>Name</th>
+                                                <th>Total Hours</th>
+                                                <th>Hourly Rate (PKR)</th>
+                                                <th>Amount (PKR)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="payrollTableBody">
+                                            <tr>
+                                                <td colspan="5" class="text-center text-muted">Use filters above and click Generate Payroll</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Employee Modal -->
+    <div class="modal fade" id="viewEmployeeModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Employee Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="employeeDetailsContent">
+                        <!-- Employee details will be loaded here -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Employee Modal -->
+    <div class="modal fade" id="editEmployeeModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Employee</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editEmployeeForm">
+                        <input type="hidden" id="editEmployeeId">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="editEmployeeNumber" class="form-label">Employee Number</label>
+                                <input type="text" class="form-control" id="editEmployeeNumber" readonly>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="editFirstName" class="form-label">First Name *</label>
+                                <input type="text" class="form-control" id="editFirstName" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="editLastName" class="form-label">Last Name *</label>
+                                <input type="text" class="form-control" id="editLastName" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="editEmail" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="editEmail">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="editPhone" class="form-label">Phone</label>
+                                <input type="tel" class="form-control" id="editPhone">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="editDepartment" class="form-label">Department</label>
+                                <input type="text" class="form-control" id="editDepartment">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="editPosition" class="form-label">Position</label>
+                                <input type="text" class="form-control" id="editPosition">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="editSalary" class="form-label">Salary</label>
+                                <input type="number" class="form-control" id="editSalary" step="0.01">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="editDateOfBirth" class="form-label">Date of Birth</label>
+                                <input type="date" class="form-control" id="editDateOfBirth">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="editIsActive" class="form-label">Status</label>
+                                <select class="form-control" id="editIsActive">
+                                    <option value="1">Active</option>
+                                    <option value="0">Inactive</option>
+                                </select>
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label for="editAddress" class="form-label">Address</label>
+                                <textarea class="form-control" id="editAddress" rows="2"></textarea>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="updateEmployee()">
+                        <span class="spinner-border spinner-border-sm d-none me-2" id="updateEmployeeSpinner"></span>
+                        Update Employee
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Employee Modal -->
+    <div class="modal fade" id="addEmployeeModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Employee</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addEmployeeForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="employeeNumber" class="form-label">Employee Number *</label>
+                                <input type="text" class="form-control" id="employeeNumber" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="firstName" class="form-label">First Name *</label>
+                                <input type="text" class="form-control" id="firstName" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="lastName" class="form-label">Last Name *</label>
+                                <input type="text" class="form-control" id="lastName" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="phone" class="form-label">Phone</label>
+                                <input type="tel" class="form-control" id="phone">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="department" class="form-label">Department</label>
+                                <input type="text" class="form-control" id="department" value="Field Operations">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="position" class="form-label">Position</label>
+                                <input type="text" class="form-control" id="position" value="Field Worker">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="salary" class="form-label">Salary</label>
+                                <input type="number" class="form-control" id="salary" step="0.01">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="hireDate" class="form-label">Hire Date</label>
+                                <input type="date" class="form-control" id="hireDate">
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label for="address" class="form-label">Address</label>
+                                <textarea class="form-control" id="address" rows="2"></textarea>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="addEmployee()">
+                        <span class="spinner-border spinner-border-sm d-none me-2" id="addEmployeeSpinner"></span>
+                        Add Employee
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attendance Details Modal -->
+    <div class="modal fade" id="attendanceDetailsModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Attendance Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="attendanceDetailsContent"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="js/dashboard.js?v=4"></script>
+</body>
+</html>
