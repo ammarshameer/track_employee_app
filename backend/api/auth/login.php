@@ -1,7 +1,7 @@
 <?php
 /**
  * Employee Login API
- * Handles employee authentication and captures login image with GPS
+ * Handles employee authentication with GPS
  */
 
 include_once '../../config/cors.php';
@@ -34,20 +34,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 // Verify password
                 if (password_verify($data->password, $employee['password'])) {
                     
-                    // Handle image upload if provided
-                    $image_path = null;
-                    if (!empty($data->login_image)) {
-                        $image_path = saveLoginImage($data->login_image, $employee['employee_id']);
-                    }
-                    
                     // Record attendance
                     $attendance_query = "INSERT INTO attendance 
-                                       (employee_id, login_time, login_image_path, login_latitude, login_longitude, attendance_date) 
-                                       VALUES (:employee_id, NOW(), :image_path, :latitude, :longitude, CURDATE())";
+                                       (employee_id, login_time, login_latitude, login_longitude, attendance_date) 
+                                       VALUES (:employee_id, NOW(), :latitude, :longitude, CURDATE())";
                     
                     $attendance_stmt = $db->prepare($attendance_query);
                     $attendance_stmt->bindParam(':employee_id', $employee['employee_id']);
-                    $attendance_stmt->bindParam(':image_path', $image_path);
                     $attendance_stmt->bindParam(':latitude', $data->latitude);
                     $attendance_stmt->bindParam(':longitude', $data->longitude);
                     
@@ -112,34 +105,5 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 } else {
     http_response_code(405);
     echo json_encode(array("success" => false, "message" => "Method not allowed"));
-}
-/**
- * Save login image to server
- */
-function saveLoginImage($base64_image, $employee_id) {
-    try {
-        // Create uploads directory if it doesn't exist
-        $upload_dir = '../../uploads/login_images/' . date('Y/m/d') . '/';
-        if (!file_exists($upload_dir)) {
-            mkdir($upload_dir, 0777, true);
-        }
-        
-        // Decode base64 image
-        $image_data = base64_decode(preg_replace('#^data:image/\w+;base64,#i', '', $base64_image));
-        
-        // Generate unique filename
-        $filename = $employee_id . '_' . date('His') . '_' . uniqid() . '.jpg';
-        $file_path = $upload_dir . $filename;
-        
-        // Save image
-        if (file_put_contents($file_path, $image_data)) {
-            return $file_path;
-        }
-        
-    } catch (Exception $e) {
-        error_log("Image save error: " . $e->getMessage());
-    }
-    
-    return null;
 }
 ?>

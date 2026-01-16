@@ -1,5 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -12,7 +13,19 @@ class ApiService {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString(_prefsKey);
     if (saved != null && saved.isNotEmpty) return saved;
-    if (Platform.isAndroid) return _androidDefault;
+    
+    // Check for web platform first (Platform is not available on web)
+    if (kIsWeb) {
+      return _desktopDefault;
+    }
+    
+    // For mobile platforms, check Android
+    try {
+      if (Platform.isAndroid) return _androidDefault;
+    } catch (_) {
+      // Platform not supported, use default
+    }
+    
     return _desktopDefault;
   }
 
