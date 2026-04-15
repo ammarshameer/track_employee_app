@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'dart:convert';
-import 'dart:io';
+import 'dart:io' show Platform;
 import '../services/api_service.dart';
 import '../services/permission_service.dart';
-import '../services/camera_service.dart';
 import 'dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -49,17 +48,6 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       // Get current location
       Position? position = await _getCurrentLocation();
-      
-      // Capture login image
-      String? loginImage = await _captureLoginImage();
-      
-      if (loginImage == null) {
-        setState(() {
-          _errorMessage = 'Failed to capture login image';
-          _isLoading = false;
-        });
-        return;
-      }
 
       // Prepare login data
       Map<String, dynamic> loginData = {
@@ -67,7 +55,6 @@ class _LoginScreenState extends State<LoginScreen> {
         'password': _passwordController.text,
         'latitude': position?.latitude,
         'longitude': position?.longitude,
-        'login_image': loginImage,
         'device_info': await _getDeviceInfo(),
         'device_time_iso': DateTime.now().toIso8601String(),
         'timezone_offset_minutes': DateTime.now().timeZoneOffset.inMinutes,
@@ -136,17 +123,20 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<String?> _captureLoginImage() async {
-    try {
-      return await CameraService.captureImageWithUI(context);
-    } catch (e) {
-      print('Camera error: $e');
-      return null;
-    }
-  }
-
   Future<String> _getDeviceInfo() async {
-    return Platform.isAndroid ? 'Android Device' : 'iOS Device';
+    // Check for web platform first (Platform is not available on web)
+    if (kIsWeb) {
+      return 'Web Device';
+    }
+    
+    try {
+      if (Platform.isAndroid) return 'Android Device';
+      if (Platform.isIOS) return 'iOS Device';
+    } catch (_) {
+      // Platform not supported
+    }
+    
+    return 'Unknown Device';
   }
 
   @override
@@ -363,7 +353,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Your location and photo will be captured during login for attendance tracking.',
+                      'Your location will be captured during login for attendance tracking.',
                       style: TextStyle(
                         color: Colors.amber.shade700,
                         fontSize: 12,
