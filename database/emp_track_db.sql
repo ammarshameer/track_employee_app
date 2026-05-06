@@ -182,6 +182,42 @@ CREATE TABLE `payroll` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+-- --------------------------------------------------------
+--
+-- Table structure for table `tasks`
+--
+
+CREATE TABLE `tasks` (
+  `task_id` int(11) NOT NULL,
+  `title` varchar(150) NOT NULL,
+  `description` text DEFAULT NULL,
+  `assigned_employee_id` int(11) NOT NULL,
+  `created_by_admin_id` int(11) DEFAULT NULL,
+  `status` enum('pending','in_progress','completed','blocked') NOT NULL DEFAULT 'pending',
+  `due_date` date DEFAULT NULL,
+  `started_at` timestamp NULL DEFAULT NULL,
+  `completed_at` timestamp NULL DEFAULT NULL,
+  `blocked_at` timestamp NULL DEFAULT NULL,
+  `block_reason` text DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+--
+-- Table structure for table `task_status_history`
+--
+
+CREATE TABLE `task_status_history` (
+  `history_id` int(11) NOT NULL,
+  `task_id` int(11) NOT NULL,
+  `status` enum('pending','in_progress','completed','blocked') NOT NULL,
+  `reason` text DEFAULT NULL,
+  `changed_by_employee_id` int(11) DEFAULT NULL,
+  `changed_by_admin_id` int(11) DEFAULT NULL,
+  `changed_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 --
 -- Indexes for dumped tables
 --
@@ -231,6 +267,23 @@ ALTER TABLE `payroll`
   ADD KEY `idx_payroll_employee` (`employee_id`);
 
 --
+-- Indexes for table `tasks`
+--
+ALTER TABLE `tasks`
+  ADD PRIMARY KEY (`task_id`),
+  ADD KEY `idx_tasks_assigned_employee` (`assigned_employee_id`),
+  ADD KEY `idx_tasks_status` (`status`),
+  ADD KEY `idx_tasks_created_at` (`created_at`);
+
+--
+-- Indexes for table `task_status_history`
+--
+ALTER TABLE `task_status_history`
+  ADD PRIMARY KEY (`history_id`),
+  ADD KEY `idx_task_history_task` (`task_id`),
+  ADD KEY `idx_task_history_changed_at` (`changed_at`);
+
+--
 -- AUTO_INCREMENT for dumped tables
 --
 
@@ -265,6 +318,18 @@ ALTER TABLE `payroll`
   MODIFY `payroll_id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT for table `tasks`
+--
+ALTER TABLE `tasks`
+  MODIFY `task_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `task_status_history`
+--
+ALTER TABLE `task_status_history`
+  MODIFY `history_id` int(11) NOT NULL AUTO_INCREMENT;
+
+--
 -- Constraints for dumped tables
 --
 
@@ -291,6 +356,21 @@ ALTER TABLE `gps_tracking`
 --
 ALTER TABLE `payroll`
   ADD CONSTRAINT `payroll_ibfk_1` FOREIGN KEY (`employee_id`) REFERENCES `employees` (`employee_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `tasks`
+--
+ALTER TABLE `tasks`
+  ADD CONSTRAINT `tasks_ibfk_1` FOREIGN KEY (`assigned_employee_id`) REFERENCES `employees` (`employee_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `tasks_ibfk_2` FOREIGN KEY (`created_by_admin_id`) REFERENCES `admins` (`admin_id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `task_status_history`
+--
+ALTER TABLE `task_status_history`
+  ADD CONSTRAINT `task_status_history_ibfk_1` FOREIGN KEY (`task_id`) REFERENCES `tasks` (`task_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `task_status_history_ibfk_2` FOREIGN KEY (`changed_by_employee_id`) REFERENCES `employees` (`employee_id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `task_status_history_ibfk_3` FOREIGN KEY (`changed_by_admin_id`) REFERENCES `admins` (`admin_id`) ON DELETE SET NULL;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

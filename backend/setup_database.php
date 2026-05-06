@@ -122,6 +122,39 @@ try {
                 is_active BOOLEAN DEFAULT TRUE,
                 device_info TEXT,
                 FOREIGN KEY (employee_id) REFERENCES employees(employee_id) ON DELETE CASCADE
+            )",
+
+        "tasks" => "
+            CREATE TABLE IF NOT EXISTS tasks (
+                task_id INT PRIMARY KEY AUTO_INCREMENT,
+                title VARCHAR(150) NOT NULL,
+                description TEXT,
+                assigned_employee_id INT NOT NULL,
+                created_by_admin_id INT NULL,
+                status ENUM('pending','in_progress','completed','blocked') NOT NULL DEFAULT 'pending',
+                due_date DATE NULL,
+                started_at TIMESTAMP NULL DEFAULT NULL,
+                completed_at TIMESTAMP NULL DEFAULT NULL,
+                blocked_at TIMESTAMP NULL DEFAULT NULL,
+                block_reason TEXT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (assigned_employee_id) REFERENCES employees(employee_id) ON DELETE CASCADE,
+                FOREIGN KEY (created_by_admin_id) REFERENCES admins(admin_id) ON DELETE SET NULL
+            )",
+
+        "task_status_history" => "
+            CREATE TABLE IF NOT EXISTS task_status_history (
+                history_id INT PRIMARY KEY AUTO_INCREMENT,
+                task_id INT NOT NULL,
+                status ENUM('pending','in_progress','completed','blocked') NOT NULL,
+                reason TEXT NULL,
+                changed_by_employee_id INT NULL,
+                changed_by_admin_id INT NULL,
+                changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (task_id) REFERENCES tasks(task_id) ON DELETE CASCADE,
+                FOREIGN KEY (changed_by_employee_id) REFERENCES employees(employee_id) ON DELETE SET NULL,
+                FOREIGN KEY (changed_by_admin_id) REFERENCES admins(admin_id) ON DELETE SET NULL
             )"
     ];
     
@@ -144,7 +177,12 @@ try {
         "CREATE INDEX IF NOT EXISTS idx_gps_employee_date ON gps_tracking(employee_id, tracking_date)",
         "CREATE INDEX IF NOT EXISTS idx_gps_timestamp ON gps_tracking(timestamp)",
         "CREATE INDEX IF NOT EXISTS idx_payroll_employee ON payroll(employee_id)",
-        "CREATE INDEX IF NOT EXISTS idx_sessions_employee ON employee_sessions(employee_id)"
+        "CREATE INDEX IF NOT EXISTS idx_sessions_employee ON employee_sessions(employee_id)",
+        "CREATE INDEX IF NOT EXISTS idx_tasks_assigned_employee ON tasks(assigned_employee_id)",
+        "CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)",
+        "CREATE INDEX IF NOT EXISTS idx_tasks_created_at ON tasks(created_at)",
+        "CREATE INDEX IF NOT EXISTS idx_task_history_task ON task_status_history(task_id)",
+        "CREATE INDEX IF NOT EXISTS idx_task_history_changed_at ON task_status_history(changed_at)"
     ];
     
     foreach ($indexes as $index) {
