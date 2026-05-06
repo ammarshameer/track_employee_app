@@ -70,6 +70,7 @@ function showSection(sectionName) {
     const titles = {
         'overview': 'Dashboard Overview',
         'employees': 'Employee Management',
+        'tasks': 'Task Management',
         'tracking': 'Live Employee Tracking',
         'attendance': 'Attendance Records',
         'payroll': 'Payroll Management'
@@ -82,6 +83,9 @@ function showSection(sectionName) {
         case 'employees':
             loadEmployees();
             break;
+        case 'tasks':
+            loadTasks();
+            break;
         case 'tracking':
             initializeMap();
             break;
@@ -92,6 +96,283 @@ function showSection(sectionName) {
             initializePayrollDefaults();
             loadPayroll();
             break;
+    }
+}
+
+function _taskStatusBadge(status) {
+    const s = (status || '').toLowerCase();
+    if (s === 'pending') return '<span class="badge bg-secondary">Pending</span>';
+    if (s === 'in_progress') return '<span class="badge bg-primary">In Progress</span>';
+    if (s === 'completed') return '<span class="badge bg-success">Completed</span>';
+    if (s === 'blocked') return '<span class="badge bg-danger">Blocked</span>';
+    if (s === 'expired') return '<span class="badge bg-warning text-dark">Expired</span>';
+    return `<span class="badge bg-dark">${status || 'Unknown'}</span>`;
+}
+
+async function loadTasks() {
+    const tbody = document.getElementById('tasksTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center">Loading...</td></tr>';
+
+    const status = (document.getElementById('taskStatusFilter')?.value || '').trim();
+    const emp = (document.getElementById('taskEmployeeFilter')?.value || '').trim();
+
+    try {
+        let url = `${API_BASE}/admin/get_tasks.php`;
+        const qs = [];
+        if (status) qs.push(`status=${encodeURIComponent(status)}`);
+        if (emp) qs.push(`employee_number=${encodeURIComponent(emp)}`);
+        if (qs.length) url += `?${qs.join('&')}`;
+
+        const response = await fetch(url, { credentials: 'include' });
+        const data = await response.json();
+
+        if (!data.success) {
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">${data.message || 'Failed to load tasks'}</td></tr>`;
+            return;
+        }
+
+        const tasks = data.data || [];
+        if (tasks.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No tasks found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = '';
+        tasks.forEach(t => {
+            const tr = document.createElement('tr');
+            const assigned = `${t.employee_number} - ${t.first_name} ${t.last_name}`;
+            const due = t.due_date || '—';
+            const upd = (t.updated_at || '').toString().replace('T', ' ');
+            const displayStatus = t.effective_status || t.status;
+            tr.innerHTML = `
+                <td>${(t.title || '').replaceAll('<','&lt;')}</td>
+                <td>${assigned}</td>
+                <td>${due}</td>
+                <td>${_taskStatusBadge(displayStatus)}</td>
+                <td>${upd || '—'}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary me-1" onclick="viewTaskDetails(${t.task_id})" title="View">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-warning me-1" onclick="showEditTaskModal(${t.task_id})" title="Edit">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteTask(${t.task_id})" title="Delete">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (err) {
+        console.error('Error loading tasks:', err);
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">Network error</td></tr>';
+    }
+}
+
+async function showAddTaskModal() {
+    const modalEl = document.getElementById('addTaskModal');
+    const select = document.getElementById('taskAssignedEmployee');
+    if (!modalEl || !select) return;
+
+    // Reset modal to Create mode
+    document.getElementById('taskId').value = '';
+    document.querySelector('#addTaskModal .modal-title').textContent = 'Create Task';
+    document.getElementById('taskSaveBtn').textContent = 'Create Task';
+    document.getElementById('addTaskForm')?.reset();
+
+    // Load employees for dropdown
+    select.innerHTML = '<option value="">Loading...</option>';
+    try {
+        const res = await fetch(`${API_BASE}/admin/get_employees.php`, { credentials: 'include' });
+        const data = await res.json();
+        if (data.success) {
+            const emps = data.data || [];
+            select.innerHTML = '<option value="">Select employee</option>';
+            emps.forEach(e => {
+                const opt = document.createElement('option');
+                opt.value = e.employee_id;
+                opt.textContent = `${e.employee_number} - ${e.first_name} ${e.last_name}`;
+                select.appendChild(opt);
+            });
+        } else {
+            select.innerHTML = '<option value="">Failed to load employees</option>';
+        }
+    } catch (e) {
+        select.innerHTML = '<option value="">Network error</option>';
+    }
+
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+}
+
+async function saveTask() {
+    const taskIdRaw = document.getElementById('taskId')?.value || '';
+    const taskId = parseInt(taskIdRaw || '0');
+    const title = document.getElementById('taskTitle')?.value?.trim() || '';
+    const due = document.getElementById('taskDueDate')?.value?.trim() || '';
+    const assignedId = document.getElementById('taskAssignedEmployee')?.value || '';
+    const desc = document.getElementById('taskDescription')?.value?.trim() || '';
+
+    if (!title || !assignedId) {
+        alert('Please enter Title and select an employee');
+        return;
+    }
+
+    const spinner = document.getElementById('addTaskSpinner');
+    spinner?.classList.remove('d-none');
+
+    try {
+        const url = taskId > 0 ? `${API_BASE}/admin/update_task.php` : `${API_BASE}/admin/create_task.php`;
+        const payload = {
+            title: title,
+            description: desc,
+            assigned_employee_id: parseInt(assignedId),
+            due_date: due || null
+        };
+        if (taskId > 0) payload.task_id = taskId;
+
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('addTaskModal'))?.hide();
+            document.getElementById('addTaskForm')?.reset();
+            loadTasks();
+            alert(taskId > 0 ? 'Task updated' : 'Task created');
+        } else {
+            alert(data.message || (taskId > 0 ? 'Failed to update task' : 'Failed to create task'));
+        }
+    } catch (err) {
+        console.error('Error saving task:', err);
+        alert('Network error. Please try again.');
+    } finally {
+        spinner?.classList.add('d-none');
+    }
+}
+
+async function showEditTaskModal(taskId) {
+    const modalEl = document.getElementById('addTaskModal');
+    const select = document.getElementById('taskAssignedEmployee');
+    if (!modalEl || !select) return;
+
+    document.getElementById('taskId').value = String(taskId);
+    document.querySelector('#addTaskModal .modal-title').textContent = 'Edit Task';
+    document.getElementById('taskSaveBtn').textContent = 'Update Task';
+
+    // Load employees dropdown first
+    select.innerHTML = '<option value="">Loading...</option>';
+    try {
+        const res = await fetch(`${API_BASE}/admin/get_employees.php`, { credentials: 'include' });
+        const data = await res.json();
+        if (data.success) {
+            const emps = data.data || [];
+            select.innerHTML = '<option value="">Select employee</option>';
+            emps.forEach(e => {
+                const opt = document.createElement('option');
+                opt.value = e.employee_id;
+                opt.textContent = `${e.employee_number} - ${e.first_name} ${e.last_name}`;
+                select.appendChild(opt);
+            });
+        } else {
+            select.innerHTML = '<option value="">Failed to load employees</option>';
+        }
+    } catch (e) {
+        select.innerHTML = '<option value="">Network error</option>';
+    }
+
+    // Load task details and fill form
+    try {
+        const res = await fetch(`${API_BASE}/admin/get_task_details.php?task_id=${taskId}`, { credentials: 'include' });
+        const data = await res.json();
+        if (!data.success) {
+            alert(data.message || 'Failed to load task details');
+            return;
+        }
+        const t = data.data.task;
+        document.getElementById('taskTitle').value = t.title || '';
+        document.getElementById('taskDueDate').value = t.due_date || '';
+        document.getElementById('taskDescription').value = t.description || '';
+        document.getElementById('taskAssignedEmployee').value = t.employee_id || '';
+    } catch (err) {
+        console.error('Error loading task for edit:', err);
+        alert('Network error. Please try again.');
+        return;
+    }
+
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+}
+
+async function deleteTask(taskId) {
+    if (!confirm('Delete this task? This cannot be undone.')) return;
+    try {
+        const res = await fetch(`${API_BASE}/admin/delete_task.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ task_id: taskId })
+        });
+        const data = await res.json();
+        if (data.success) {
+            loadTasks();
+            alert('Task deleted');
+        } else {
+            alert(data.message || 'Failed to delete task');
+        }
+    } catch (err) {
+        console.error('Error deleting task:', err);
+        alert('Network error. Please try again.');
+    }
+}
+
+async function viewTaskDetails(taskId) {
+    try {
+        const res = await fetch(`${API_BASE}/admin/get_task_details.php?task_id=${taskId}`, { credentials: 'include' });
+        const data = await res.json();
+        if (!data.success) {
+            alert(data.message || 'Failed to load task details');
+            return;
+        }
+
+        const task = data.data.task;
+        const history = data.data.history || [];
+        const historyHtml = history.length === 0
+            ? '<div class="text-muted">No history</div>'
+            : `<ul class="list-group">${history.map(h => `
+                <li class="list-group-item d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="fw-bold">${h.status}</div>
+                        ${h.reason ? `<div class="text-muted small">Reason: ${h.reason.replaceAll('<','&lt;')}</div>` : ''}
+                    </div>
+                    <div class="text-muted small">${h.changed_at}</div>
+                </li>
+            `).join('')}</ul>`;
+
+        const content = `
+            <div class="mb-2">
+                <h5 class="mb-1">${task.title.replaceAll('<','&lt;')}</h5>
+                <div>${_taskStatusBadge(task.status)}</div>
+            </div>
+            <div class="mb-2"><strong>Assigned:</strong> ${task.employee_number} - ${task.first_name} ${task.last_name}</div>
+            <div class="mb-2"><strong>Due:</strong> ${task.due_date || '—'}</div>
+            <div class="mb-3"><strong>Description:</strong><br>${(task.description || '').replaceAll('<','&lt;') || '<span class="text-muted">—</span>'}</div>
+            ${task.status === 'blocked' && task.block_reason ? `<div class="alert alert-danger"><strong>Block reason:</strong> ${task.block_reason.replaceAll('<','&lt;')}</div>` : ''}
+            <h6>Status History</h6>
+            ${historyHtml}
+        `;
+
+        document.getElementById('taskDetailsContent').innerHTML = content;
+        const modal = new bootstrap.Modal(document.getElementById('taskDetailsModal'));
+        modal.show();
+    } catch (err) {
+        console.error('Error loading task details:', err);
+        alert('Network error. Please try again.');
     }
 }
 

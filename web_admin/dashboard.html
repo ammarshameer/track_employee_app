@@ -69,6 +69,9 @@
                         <a class="nav-link" href="#" data-section="employees">
                             <i class="fas fa-users me-2"></i>Employees
                         </a>
+                        <a class="nav-link" href="#" data-section="tasks">
+                            <i class="fas fa-list-check me-2"></i>Tasks
+                        </a>
                         <a class="nav-link" href="#" data-section="tracking">
                             <i class="fas fa-map-marker-alt me-2"></i>Live Tracking
                         </a>
@@ -219,6 +222,60 @@
                                         </thead>
                                         <tbody id="employeesTableBody">
                                             <!-- Employee data will be loaded here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tasks Section -->
+                    <div id="tasksSection" class="d-none">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h4>Task Management</h4>
+                            <button class="btn btn-primary" onclick="showAddTaskModal()">
+                                <i class="fas fa-plus me-1"></i>Create Task
+                            </button>
+                        </div>
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="row g-2 mb-3">
+                                    <div class="col-md-3">
+                                        <select class="form-select" id="taskStatusFilter" onchange="loadTasks()">
+                                            <option value="">All Status</option>
+                                            <option value="pending">Pending</option>
+                                            <option value="in_progress">In Progress</option>
+                                            <option value="completed">Completed</option>
+                                            <option value="blocked">Blocked</option>
+                                            <option value="expired">Expired</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <input class="form-control" id="taskEmployeeFilter" placeholder="Employee ID (e.g. EMP001)" onkeydown="if(event.key==='Enter') loadTasks()"/>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <button class="btn btn-outline-primary w-100" onclick="loadTasks()">
+                                            <i class="fas fa-rotate me-1"></i>Refresh
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="table-responsive">
+                                    <table class="table table-hover" id="tasksTable">
+                                        <thead>
+                                            <tr>
+                                                <th>Title</th>
+                                                <th>Assigned To</th>
+                                                <th>Due</th>
+                                                <th>Status</th>
+                                                <th>Updated</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tasksTableBody">
+                                            <tr>
+                                                <td colspan="6" class="text-center text-muted">Click Refresh to load tasks</td>
+                                            </tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -517,6 +574,68 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Task Modal -->
+    <div class="modal fade" id="addTaskModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create Task</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addTaskForm">
+                        <div class="row">
+                            <input type="hidden" id="taskId" />
+                            <div class="col-md-8 mb-3">
+                                <label class="form-label">Title *</label>
+                                <input type="text" class="form-control" id="taskTitle" required />
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Due Date</label>
+                                <input type="date" class="form-control" id="taskDueDate" />
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label class="form-label">Assign To (Employee) *</label>
+                                <select class="form-select" id="taskAssignedEmployee" required>
+                                    <option value="">Loading...</option>
+                                </select>
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label class="form-label">Description</label>
+                                <textarea class="form-control" id="taskDescription" rows="3"></textarea>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" id="taskSaveBtn" onclick="saveTask()">
+                        <span class="spinner-border spinner-border-sm d-none me-2" id="addTaskSpinner"></span>
+                        Save
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Details Modal -->
+    <div class="modal fade" id="taskDetailsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Task Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="taskDetailsContent"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>

@@ -6,6 +6,7 @@ import '../services/api_service.dart';
 import '../services/gps_service.dart';
 import '../services/camera_service.dart';
 import 'login_screen.dart';
+import 'tasks_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final Map<String, dynamic> employeeData;
@@ -249,6 +250,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
         automaticallyImplyLeading: false,
         actions: [
           IconButton(
+            tooltip: 'My Tasks',
+            icon: const Icon(Icons.task_alt),
+            onPressed: () {
+              final sid = widget.employeeData['session_id']?.toString() ?? '';
+              if (sid.isEmpty) return;
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => TasksScreen(sessionId: sid),
+                ),
+              );
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _updateCurrentLocation,
           ),
@@ -299,6 +314,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ],
                 ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Tasks quick access
+            Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ListTile(
+                leading: const Icon(Icons.list_alt),
+                title: const Text('My Tasks'),
+                subtitle: const Text('View assigned tasks and update status'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  final sid = widget.employeeData['session_id']?.toString() ?? '';
+                  if (sid.isEmpty) return;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => TasksScreen(sessionId: sid),
+                    ),
+                  );
+                },
               ),
             ),
 

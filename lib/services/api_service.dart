@@ -126,6 +126,76 @@ class ApiService {
     }
   }
 
+  // Get tasks assigned to employee
+  static Future<Map<String, dynamic>> getMyTasks(String sessionId) async {
+    try {
+      final baseUrl = await _resolveBaseUrl();
+      final response = await http.post(
+        Uri.parse('$baseUrl/employee/get_my_tasks.php'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'session_id': sessionId,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        final errorData = json.decode(response.body);
+        return {
+          'success': false,
+          'message': errorData['message'] ?? 'Failed to load tasks',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Network error: ${e.toString()}',
+      };
+    }
+  }
+
+  // Update task status (start|complete|block)
+  static Future<Map<String, dynamic>> updateTaskStatus({
+    required String sessionId,
+    required int taskId,
+    required String action,
+    String? reason,
+  }) async {
+    try {
+      final baseUrl = await _resolveBaseUrl();
+      final response = await http.post(
+        Uri.parse('$baseUrl/employee/update_task_status.php'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'session_id': sessionId,
+          'task_id': taskId,
+          'action': action,
+          'reason': reason,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        final errorData = json.decode(response.body);
+        return {
+          'success': false,
+          'message': errorData['message'] ?? 'Failed to update task',
+        };
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Network error: ${e.toString()}',
+      };
+    }
+  }
+
   // Save session data locally
   static Future<void> saveSessionData(Map<String, dynamic> sessionData) async {
     final prefs = await SharedPreferences.getInstance();
