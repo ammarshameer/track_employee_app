@@ -54,6 +54,8 @@ class _TasksScreenState extends State<TasksScreen> {
         return Colors.green;
       case 'blocked':
         return Colors.red;
+      case 'expired':
+        return Colors.orange;
       default:
         return Colors.black54;
     }
@@ -69,6 +71,8 @@ class _TasksScreenState extends State<TasksScreen> {
         return 'Completed';
       case 'blocked':
         return 'Blocked';
+      case 'expired':
+        return 'Expired';
       default:
         return status;
     }
@@ -200,11 +204,15 @@ class _TasksScreenState extends State<TasksScreen> {
                         final id = int.tryParse(t['task_id']?.toString() ?? '') ?? 0;
                         final title = t['title']?.toString() ?? '';
                         final desc = t['description']?.toString() ?? '';
-                        final status = t['status']?.toString() ?? 'pending';
+                        final status = t['status']?.toString() ?? 'pending'; // real status used for actions
+                        final effectiveStatus = t['effective_status']?.toString();
+                        final displayStatus = (effectiveStatus != null && effectiveStatus.isNotEmpty)
+                            ? effectiveStatus
+                            : status;
                         final due = t['due_date']?.toString();
                         final blockReason = t['block_reason']?.toString();
 
-                        final statusColor = _statusColor(status);
+                        final statusColor = _statusColor(displayStatus);
                         final canStart = status == 'pending' || status == 'blocked';
                         final canComplete = status == 'in_progress';
                         final canBlock = status == 'pending' || status == 'in_progress';
@@ -233,7 +241,7 @@ class _TasksScreenState extends State<TasksScreen> {
                                         borderRadius: BorderRadius.circular(999),
                                       ),
                                       child: Text(
-                                        _statusLabel(status),
+                                        _statusLabel(displayStatus),
                                         style: TextStyle(
                                           color: statusColor,
                                           fontWeight: FontWeight.w600,

@@ -33,8 +33,12 @@ try {
     $params = array();
 
     if ($status) {
-        $where[] = "t.status = :status";
-        $params[':status'] = $status;
+        if ($status === 'expired') {
+            $where[] = "t.status <> 'completed' AND t.due_date IS NOT NULL AND t.due_date < CURDATE()";
+        } else {
+            $where[] = "t.status = :status";
+            $params[':status'] = $status;
+        }
     }
     if ($employee_number) {
         $where[] = "e.employee_number = :employee_number";
@@ -45,6 +49,10 @@ try {
 
     $q = "SELECT 
             t.task_id, t.title, t.description, t.status, t.due_date,
+            CASE 
+              WHEN t.status <> 'completed' AND t.due_date IS NOT NULL AND t.due_date < CURDATE() THEN 'expired'
+              ELSE t.status
+            END AS effective_status,
             t.started_at, t.completed_at, t.blocked_at, t.block_reason,
             t.created_at, t.updated_at,
             e.employee_id, e.employee_number, e.first_name, e.last_name

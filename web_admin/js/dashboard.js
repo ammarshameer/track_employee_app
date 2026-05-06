@@ -105,6 +105,7 @@ function _taskStatusBadge(status) {
     if (s === 'in_progress') return '<span class="badge bg-primary">In Progress</span>';
     if (s === 'completed') return '<span class="badge bg-success">Completed</span>';
     if (s === 'blocked') return '<span class="badge bg-danger">Blocked</span>';
+    if (s === 'expired') return '<span class="badge bg-warning text-dark">Expired</span>';
     return `<span class="badge bg-dark">${status || 'Unknown'}</span>`;
 }
 
@@ -143,11 +144,12 @@ async function loadTasks() {
             const assigned = `${t.employee_number} - ${t.first_name} ${t.last_name}`;
             const due = t.due_date || '—';
             const upd = (t.updated_at || '').toString().replace('T', ' ');
+            const displayStatus = t.effective_status || t.status;
             tr.innerHTML = `
                 <td>${(t.title || '').replaceAll('<','&lt;')}</td>
                 <td>${assigned}</td>
                 <td>${due}</td>
-                <td>${_taskStatusBadge(t.status)}</td>
+                <td>${_taskStatusBadge(displayStatus)}</td>
                 <td>${upd || '—'}</td>
                 <td>
                     <button class="btn btn-sm btn-outline-primary me-1" onclick="viewTaskDetails(${t.task_id})" title="View">
