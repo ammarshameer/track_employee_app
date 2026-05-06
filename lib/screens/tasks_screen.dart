@@ -61,6 +61,20 @@ class _TasksScreenState extends State<TasksScreen> {
     }
   }
 
+  bool _isExpired({
+    required String status,
+    required String? dueDate,
+  }) {
+    if (status == 'completed') return false;
+    if (dueDate == null || dueDate.isEmpty) return false;
+    final d = DateTime.tryParse(dueDate);
+    if (d == null) return false;
+    final due = DateTime(d.year, d.month, d.day);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return due.isBefore(today);
+  }
+
   String _statusLabel(String status) {
     switch (status) {
       case 'pending':
@@ -204,18 +218,19 @@ class _TasksScreenState extends State<TasksScreen> {
                         final id = int.tryParse(t['task_id']?.toString() ?? '') ?? 0;
                         final title = t['title']?.toString() ?? '';
                         final desc = t['description']?.toString() ?? '';
-                        final status = t['status']?.toString() ?? 'pending'; // real status used for actions
-                        final effectiveStatus = t['effective_status']?.toString();
-                        final displayStatus = (effectiveStatus != null && effectiveStatus.isNotEmpty)
-                            ? effectiveStatus
-                            : status;
+                        final status = t['status']?.toString() ?? 'pending'; // display status (can be expired)
+                        final rawStatus = t['raw_status']?.toString() ?? status; // real status for actions
                         final due = t['due_date']?.toString();
                         final blockReason = t['block_reason']?.toString();
 
+                        // Server returns status=expired, but keep a local fallback too.
+                        final computedExpired = _isExpired(status: rawStatus, dueDate: due);
+                        final displayStatus = computedExpired ? 'expired' : status;
+
                         final statusColor = _statusColor(displayStatus);
-                        final canStart = status == 'pending' || status == 'blocked';
-                        final canComplete = status == 'in_progress';
-                        final canBlock = status == 'pending' || status == 'in_progress';
+                        final canStart = rawStatus == 'pending' || rawStatus == 'blocked';
+                        final canComplete = rawStatus == 'in_progress';
+                        final canBlock = rawStatus == 'pending' || rawStatus == 'in_progress';
 
                         return Card(
                           child: Padding(

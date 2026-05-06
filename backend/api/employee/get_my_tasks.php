@@ -28,11 +28,13 @@ if (empty($data->session_id)) {
 try {
     $employee = require_employee_session($db, $data->session_id);
 
-    $q = "SELECT t.task_id, t.title, t.description, t.status, t.due_date,
+    $q = "SELECT t.task_id, t.title, t.description,
+                 t.status AS raw_status,
                  CASE 
                    WHEN t.status <> 'completed' AND t.due_date IS NOT NULL AND t.due_date < CURDATE() THEN 'expired'
                    ELSE t.status
-                 END AS effective_status,
+                 END AS status,
+                 t.due_date,
                  t.started_at, t.completed_at, t.blocked_at, t.block_reason,
                  t.created_at, t.updated_at
           FROM tasks t
