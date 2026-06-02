@@ -2,6 +2,17 @@ const API_BASE = '../backend/api';
 let map;
 let employeeMarkers = [];
 
+/** Escape a string for safe insertion into HTML. */
+function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 // Initialize dashboard
 document.addEventListener('DOMContentLoaded', function() {
     // Check authentication
@@ -139,20 +150,22 @@ async function loadEmployees() {
                     '<span class="badge bg-success">Active</span>' : 
                     '<span class="badge bg-danger">Inactive</span>';
                 
+                const empId = parseInt(employee.employee_id, 10);
+                const empNum = escapeHtml(employee.employee_number);
                 row.innerHTML = `
-                    <td>${employee.employee_number}</td>
-                    <td>${employee.first_name} ${employee.last_name}</td>
-                    <td>${employee.department || 'N/A'}</td>
-                    <td>${employee.position || 'N/A'}</td>
+                    <td>${empNum}</td>
+                    <td>${escapeHtml(employee.first_name)} ${escapeHtml(employee.last_name)}</td>
+                    <td>${escapeHtml(employee.department) || 'N/A'}</td>
+                    <td>${escapeHtml(employee.position) || 'N/A'}</td>
                     <td>${statusBadge}</td>
                     <td>
-                        <button class="btn btn-sm btn-outline-primary me-1" onclick="viewEmployee(${employee.employee_id})" title="View Details">
+                        <button class="btn btn-sm btn-outline-primary me-1" onclick="viewEmployee(${empId})" title="View Details">
                             <i class="fas fa-eye"></i>
                         </button>
-                        <button class="btn btn-sm btn-outline-warning me-1" onclick="editEmployee(${employee.employee_id})" title="Edit Employee">
+                        <button class="btn btn-sm btn-outline-warning me-1" onclick="editEmployee(${empId})" title="Edit Employee">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="deleteEmployee(${employee.employee_id}, '${employee.employee_number}')" title="Delete Employee">
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteEmployee(${empId}, '${empNum}')" title="Delete Employee">
                             <i class="fas fa-trash"></i>
                         </button>
                     </td>
@@ -224,11 +237,11 @@ async function loadPayroll() {
             rows.forEach(r => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td>${r.employee_number}</td>
-                    <td>${r.name}</td>
-                    <td>${r.total_hours}</td>
+                    <td>${escapeHtml(r.employee_number)}</td>
+                    <td>${escapeHtml(r.name)}</td>
+                    <td>${escapeHtml(r.total_hours)}</td>
                     <td>PKR ${parseFloat(r.hourly_rate).toFixed(2)}</td>
-                    <td>PKR ${r.amount}</td>
+                    <td>PKR ${escapeHtml(r.amount)}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -282,8 +295,8 @@ function displayEmployeeLocation(data) {
     document.getElementById('locationDetails').innerHTML = `
         <div class="card">
             <div class="card-header">
-                <h5>${employee.first_name} ${employee.last_name} (${employee.employee_number})</h5>
-                <small class="text-muted">Date: ${data.date}</small>
+                <h5>${escapeHtml(employee.first_name)} ${escapeHtml(employee.last_name)} (${escapeHtml(employee.employee_number)})</h5>
+                <small class="text-muted">Date: ${escapeHtml(data.date)}</small>
             </div>
             <div class="card-body">
                 <div class="row">
@@ -421,22 +434,22 @@ async function loadAttendanceData() {
                 }
                 
                 row.innerHTML = `
-                    <td>${record.employee_number}</td>
-                    <td>${record.name}</td>
-                    <td>${record.login_time_formatted}</td>
-                    <td>${record.logout_time_formatted}</td>
-                    <td>${record.duration_hms || (parseFloat(record.total_hours_formatted || 0).toFixed(2) + ' hours')}</td>
+                    <td>${escapeHtml(record.employee_number)}</td>
+                    <td>${escapeHtml(record.name)}</td>
+                    <td>${escapeHtml(record.login_time_formatted)}</td>
+                    <td>${escapeHtml(record.logout_time_formatted)}</td>
+                    <td>${escapeHtml(record.duration_hms || (parseFloat(record.total_hours_formatted || 0).toFixed(2) + ' hours'))}</td>
                     <td><span class="badge ${badgeClass}">${statusText}</span></td>
                     <td>
                         <button class="btn btn-sm btn-outline-primary"
-                                onclick="viewAttendanceDetailsFromButton(this, '${date}')"
+                                onclick="viewAttendanceDetailsFromButton(this, '${escapeHtml(date)}')"
                                 title="View Details"
-                                data-employee-number="${record.employee_number}"
-                                data-name="${record.name}"
-                                data-login="${record.login_time_formatted}"
-                                data-logout="${record.logout_time_formatted || ''}"
-                                data-total-hours="${record.duration_hms || (record.total_hours_formatted + ' hours')}"
-                                data-total-hours-raw="${record.total_seconds || 0}"
+                                data-employee-number="${escapeHtml(record.employee_number)}"
+                                data-name="${escapeHtml(record.name)}"
+                                data-login="${escapeHtml(record.login_time_formatted)}"
+                                data-logout="${escapeHtml(record.logout_time_formatted || '')}"
+                                data-total-hours="${escapeHtml(record.duration_hms || (record.total_hours_formatted + ' hours'))}"
+                                data-total-hours-raw="${escapeHtml(record.total_seconds || 0)}"
                                 data-logout-present="${record.logout_time ? '1' : '0'}">
                             <i class="fas fa-eye"></i>
                         </button>
@@ -499,7 +512,7 @@ async function addEmployee() {
         const data = await response.json();
         
         if (data.success) {
-            alert(`Employee added successfully!\nEmployee ID: ${data.data.employee_number}\nDefault Password: ${data.data.default_password}`);
+            alert(`Employee added successfully!\nEmployee ID: ${data.data.employee_number}\nDefault password is the employee number.`);
             
             // Close modal and refresh employees list
             bootstrap.Modal.getInstance(document.getElementById('addEmployeeModal')).hide();
@@ -538,13 +551,13 @@ async function viewEmployee(employeeId) {
                     <div class="col-md-6">
                         <h6>Personal Information</h6>
                         <table class="table table-sm">
-                            <tr><td><strong>Employee ID:</strong></td><td>${employee.employee_number}</td></tr>
-                            <tr><td><strong>Name:</strong></td><td>${employee.first_name} ${employee.last_name}</td></tr>
-                            <tr><td><strong>Email:</strong></td><td>${employee.email || 'N/A'}</td></tr>
-                            <tr><td><strong>Phone:</strong></td><td>${employee.phone || 'N/A'}</td></tr>
-                            <tr><td><strong>Department:</strong></td><td>${employee.department || 'N/A'}</td></tr>
-                            <tr><td><strong>Position:</strong></td><td>${employee.position || 'N/A'}</td></tr>
-                            <tr><td><strong>Hire Date:</strong></td><td>${employee.hire_date || 'N/A'}</td></tr>
+                            <tr><td><strong>Employee ID:</strong></td><td>${escapeHtml(employee.employee_number)}</td></tr>
+                            <tr><td><strong>Name:</strong></td><td>${escapeHtml(employee.first_name)} ${escapeHtml(employee.last_name)}</td></tr>
+                            <tr><td><strong>Email:</strong></td><td>${escapeHtml(employee.email) || 'N/A'}</td></tr>
+                            <tr><td><strong>Phone:</strong></td><td>${escapeHtml(employee.phone) || 'N/A'}</td></tr>
+                            <tr><td><strong>Department:</strong></td><td>${escapeHtml(employee.department) || 'N/A'}</td></tr>
+                            <tr><td><strong>Position:</strong></td><td>${escapeHtml(employee.position) || 'N/A'}</td></tr>
+                            <tr><td><strong>Hire Date:</strong></td><td>${escapeHtml(employee.hire_date) || 'N/A'}</td></tr>
                             <tr><td><strong>Salary:</strong></td><td>PKR ${parseFloat(employee.salary || 0).toFixed(2)}</td></tr>
                             <tr><td><strong>Status:</strong></td><td><span class="badge ${employee.is_active ? 'bg-success' : 'bg-danger'}">${employee.is_active ? 'Active' : 'Inactive'}</span></td></tr>
                         </table>
@@ -584,7 +597,7 @@ async function viewEmployee(employeeId) {
                     <div class="row mt-3">
                         <div class="col-12">
                             <h6>Address</h6>
-                            <p>${employee.address}</p>
+                            <p>${escapeHtml(employee.address)}</p>
                         </div>
                     </div>
                 ` : ''}
@@ -752,12 +765,12 @@ function viewAttendanceDetailsFromButton(buttonEl, date) {
 
     const content = `
         <table class="table table-sm">
-            <tr><td><strong>Date</strong></td><td>${date}</td></tr>
-            <tr><td><strong>Employee ID</strong></td><td>${d.employeeNumber}</td></tr>
-            <tr><td><strong>Name</strong></td><td>${d.name}</td></tr>
-            <tr><td><strong>Login Time</strong></td><td>${d.login}</td></tr>
-            <tr><td><strong>Logout Time</strong></td><td>${d.logout || 'Still logged in'}</td></tr>
-            <tr><td><strong>Total Hours</strong></td><td>${d.totalHours} hours</td></tr>
+            <tr><td><strong>Date</strong></td><td>${escapeHtml(date)}</td></tr>
+            <tr><td><strong>Employee ID</strong></td><td>${escapeHtml(d.employeeNumber)}</td></tr>
+            <tr><td><strong>Name</strong></td><td>${escapeHtml(d.name)}</td></tr>
+            <tr><td><strong>Login Time</strong></td><td>${escapeHtml(d.login)}</td></tr>
+            <tr><td><strong>Logout Time</strong></td><td>${escapeHtml(d.logout) || 'Still logged in'}</td></tr>
+            <tr><td><strong>Total Hours</strong></td><td>${escapeHtml(d.totalHours)} hours</td></tr>
             <tr><td><strong>Status</strong></td><td><span class="badge ${badgeClass}">${statusText}</span></td></tr>
         </table>
     `;
@@ -785,12 +798,12 @@ async function viewAttendanceDetails(employeeNumber, date) {
             }
             const content = `
                 <table class="table table-sm">
-                    <tr><td><strong>Date</strong></td><td>${date}</td></tr>
-                    <tr><td><strong>Employee ID</strong></td><td>${record.employee_number}</td></tr>
-                    <tr><td><strong>Name</strong></td><td>${record.name}</td></tr>
-                    <tr><td><strong>Login Time</strong></td><td>${record.login_time_formatted}</td></tr>
-                    <tr><td><strong>Logout Time</strong></td><td>${record.logout_time_formatted || 'Still logged in'}</td></tr>
-                    <tr><td><strong>Total Hours</strong></td><td>${record.total_hours_formatted} hours</td></tr>
+                    <tr><td><strong>Date</strong></td><td>${escapeHtml(date)}</td></tr>
+                    <tr><td><strong>Employee ID</strong></td><td>${escapeHtml(record.employee_number)}</td></tr>
+                    <tr><td><strong>Name</strong></td><td>${escapeHtml(record.name)}</td></tr>
+                    <tr><td><strong>Login Time</strong></td><td>${escapeHtml(record.login_time_formatted)}</td></tr>
+                    <tr><td><strong>Logout Time</strong></td><td>${escapeHtml(record.logout_time_formatted) || 'Still logged in'}</td></tr>
+                    <tr><td><strong>Total Hours</strong></td><td>${escapeHtml(record.total_hours_formatted)} hours</td></tr>
                     <tr><td><strong>Status</strong></td><td><span class="badge ${badgeClass}">${statusText}</span></td></tr>
                 </table>
             `;

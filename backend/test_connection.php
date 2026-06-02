@@ -2,9 +2,18 @@
 /**
  * Database Connection Test Script
  * Use this to verify database setup and create admin user if needed
+ *
+ * WARNING: This script is for local development only.
+ * It is disabled unless the ENABLE_DEBUG_ENDPOINTS environment variable
+ * is set to "true".
  */
 
-// Enable error reporting
+if (getenv('ENABLE_DEBUG_ENDPOINTS') !== 'true') {
+    http_response_code(403);
+    echo "<h2>Forbidden</h2><p>Debug endpoints are disabled in this environment.</p>";
+    exit();
+}
+
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
@@ -12,10 +21,10 @@ echo "<h2>Employee Tracking System - Database Test</h2>";
 
 // Test database connection
 try {
-    $host = "localhost";
-    $db_name = "emp_track_db";
-    $username = "root";
-    $password = "";
+    $host     = getenv('DB_HOST')     ?: 'localhost';
+    $db_name  = getenv('DB_NAME')     ?: 'emp_track_db';
+    $username = getenv('DB_USERNAME')  ?: 'root';
+    $password = getenv('DB_PASSWORD')  ?: '';
     
     $pdo = new PDO("mysql:host=$host;dbname=$db_name", $username, $password);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -51,11 +60,12 @@ try {
         // Check other tables
         $tables = ['employees', 'attendance', 'gps_tracking', 'payroll', 'employee_sessions'];
         foreach ($tables as $table) {
-            $stmt = $pdo->query("SHOW TABLES LIKE '$table'");
-            if ($stmt->rowCount() > 0) {
-                echo "<p style='color: green;'>✅ Table '$table' exists</p>";
+            $check_stmt = $pdo->prepare("SHOW TABLES LIKE ?");
+            $check_stmt->execute([$table]);
+            if ($check_stmt->rowCount() > 0) {
+                echo "<p style='color: green;'>✅ Table '" . htmlspecialchars($table) . "' exists</p>";
             } else {
-                echo "<p style='color: red;'>❌ Table '$table' missing</p>";
+                echo "<p style='color: red;'>❌ Table '" . htmlspecialchars($table) . "' missing</p>";
             }
         }
         

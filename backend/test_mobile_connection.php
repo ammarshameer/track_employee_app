@@ -2,9 +2,18 @@
 /**
  * Mobile Connection Test
  * Test if the API is accessible from mobile devices
+ *
+ * WARNING: This script is for local development only.
+ * It is disabled unless the ENABLE_DEBUG_ENDPOINTS environment variable
+ * is set to "true".
  */
 
-// Enable CORS for mobile apps
+if (getenv('ENABLE_DEBUG_ENDPOINTS') !== 'true') {
+    http_response_code(403);
+    echo "<h2>Forbidden</h2><p>Debug endpoints are disabled in this environment.</p>";
+    exit();
+}
+
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type");
@@ -37,11 +46,12 @@ echo "</ul>";
 
 echo "<h3>Test from Mobile Browser:</h3>";
 echo "<p>Open this URL on your mobile device:</p>";
-echo "<p><strong>http://10.234.150.102/emp_track_2/backend/test_mobile_connection.php</strong></p>";
+$serverAddr = htmlspecialchars($_SERVER['SERVER_ADDR'] ?? 'YOUR_SERVER_IP');
+echo "<p><strong>http://" . $serverAddr . "/emp_track_2/backend/test_mobile_connection.php</strong></p>";
 
 echo "<h3>Flutter App Configuration:</h3>";
 echo "<p>The Flutter app is configured to use:</p>";
-echo "<code>http://10.234.150.102/emp_track_2/backend/api</code>";
+echo "<code>http://" . $serverAddr . "/emp_track_2/backend/api</code>";
 
 // Test database connection
 echo "<h3>Database Connection Test:</h3>";

@@ -5,7 +5,10 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String _androidDefault = 'http://192.168.18.193/emp_track_app/backend/api';
+  // Configure via SharedPreferences at runtime; this placeholder reminds
+  // developers to set the URL on first launch rather than shipping a
+  // hardcoded private-network address.
+  static const String _androidDefault = 'http://10.0.2.2/emp_track_2/backend/api';
   static const String _desktopDefault = 'http://localhost/emp_track_2/backend/api';
   static const String _prefsKey = 'api_base_url';
 
