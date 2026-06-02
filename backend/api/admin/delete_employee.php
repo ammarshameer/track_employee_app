@@ -4,82 +4,53 @@
  * Admin can delete employees
  */
 
-include_once '../../config/cors.php';
-include_once '../../config/database.php';
+include_once '../../config/helpers.php';
 
-session_start();
+require_admin_auth();
+require_method(['POST', 'DELETE']);
 
-// Check if admin is logged in
-if (!isset($_SESSION['admin_id'])) {
-    http_response_code(401);
-    echo json_encode(array("success" => false, "message" => "Admin authentication required"));
-    exit();
+$db = get_db();
+
+// Get employee ID from POST data or URL
+$employee_id = null;
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $data = get_json_input();
+    $employee_id = $data->employee_id ?? null;
+} else {
+    $employee_id = $_GET['employee_id'] ?? null;
 }
 
-$database = new Database();
-$db = $database->getConnection();
+if (!$employee_id) {
+    json_error("Employee ID is required");
+}
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST' || $_SERVER['REQUEST_METHOD'] == 'DELETE') {
+try {
+    $check_query = "SELECT employee_number, first_name, last_name FROM employees WHERE employee_id = :employee_id";
+    $check_stmt = $db->prepare($check_query);
+    $check_stmt->bindParam(':employee_id', $employee_id);
+    $check_stmt->execute();
     
-    // Get employee ID from POST data or URL
-    $employee_id = null;
-    
-    if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-        $data = json_decode(file_get_contents("php://input"));
-        $employee_id = $data->employee_id ?? null;
-    } else {
-        $employee_id = $_GET['employee_id'] ?? null;
+    if ($check_stmt->rowCount() == 0) {
+        json_error("Employee not found", 404);
     }
     
-    if (!$employee_id) {
-        http_response_code(400);
-        echo json_encode(array("success" => false, "message" => "Employee ID is required"));
-        exit();
-    }
+    $employee = $check_stmt->fetch(PDO::FETCH_ASSOC);
     
-    try {
-        // First check if employee exists
-        $check_query = "SELECT employee_number, first_name, last_name FROM employees WHERE employee_id = :employee_id";
-        $check_stmt = $db->prepare($check_query);
-        $check_stmt->bindParam(':employee_id', $employee_id);
-        $check_stmt->execute();
-        
-        if ($check_stmt->rowCount() == 0) {
-            http_response_code(404);
-            echo json_encode(array("success" => false, "message" => "Employee not found"));
-            exit();
-        }
-        
-        $employee = $check_stmt->fetch(PDO::FETCH_ASSOC);
-        
-        // Delete employee (CASCADE will handle related records)
-        $delete_query = "DELETE FROM employees WHERE employee_id = :employee_id";
-        $delete_stmt = $db->prepare($delete_query);
-        $delete_stmt->bindParam(':employee_id', $employee_id);
-        
-        if ($delete_stmt->execute()) {
-            http_response_code(200);
-            echo json_encode(array(
-                "success" => true,
-                "message" => "Employee deleted successfully",
-                "data" => array(
-                    "employee_id" => $employee_id,
-                    "employee_number" => $employee['employee_number'],
-                    "name" => $employee['first_name'] . ' ' . $employee['last_name']
-                )
-            ));
-        } else {
-            http_response_code(500);
-            echo json_encode(array("success" => false, "message" => "Failed to delete employee"));
-        }
-        
-    } catch (PDOException $e) {
-        http_response_code(500);
-        echo json_encode(array("success" => false, "message" => "Database error: " . $e->getMessage()));
-    }
+    $delete_query = "DELETE FROM employees WHERE employee_id = :employee_id";
+    $delete_stmt = $db->prepare($delete_query);
+    $delete_stmt->bindParam(':employee_id', $employee_id);
     
-} else {
-    http_response_code(405);
-    echo json_encode(array("success" => false, "message" => "Method not allowed"));
+    if (!$delete_stmt->execute()) {
+        json_error("Failed to delete employee", 500);
+    }
+
+    json_success(array(
+        "employee_id" => $employee_id,
+        "employee_number" => $employee['employee_number'],
+        "name" => $employee['first_name'] . ' ' . $employee['last_name']
+    ), "Employee deleted successfully");
+
+} catch (PDOException $e) {
+    json_error("Database error: " . $e->getMessage(), 500);
 }
 ?>

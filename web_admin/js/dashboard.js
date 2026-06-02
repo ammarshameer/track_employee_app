@@ -1,4 +1,5 @@
-const API_BASE = '../backend/api';
+// API_BASE, apiGet, apiPost, handleApiError, getAttendanceStatusBadge
+// are provided by api_helpers.js (loaded before this file).
 let map;
 let employeeMarkers = [];
 
@@ -97,11 +98,7 @@ function showSection(sectionName) {
 
 async function loadDashboardStats() {
     try {
-        const response = await fetch(`${API_BASE}/admin/get_dashboard_stats.php`, {
-            credentials: 'include'
-        });
-        
-        const data = await response.json();
+        const data = await apiGet('/admin/get_dashboard_stats.php');
         
         if (data.success) {
             const stats = data.data;
@@ -116,17 +113,13 @@ async function loadDashboardStats() {
         }
         
     } catch (error) {
-        console.error('Error loading dashboard stats:', error);
+        handleApiError(error, 'loading dashboard stats');
     }
 }
 
 async function loadEmployees() {
     try {
-        const response = await fetch(`${API_BASE}/admin/get_employees.php`, {
-            credentials: 'include'
-        });
-        
-        const data = await response.json();
+        const data = await apiGet('/admin/get_employees.php');
         
         if (data.success) {
             const employees = data.data;
@@ -171,8 +164,7 @@ async function loadEmployees() {
         }
         
     } catch (error) {
-        console.error('Error loading employees:', error);
-        alert('Error loading employees. Please try again.');
+        handleApiError(error, 'loading employees');
     }
 }
 
@@ -210,10 +202,9 @@ async function loadPayroll() {
     }
     tbody.innerHTML = '<tr><td colspan="5" class="text-center">Loading...</td></tr>';
     try {
-        let url = `${API_BASE}/admin/get_payroll.php?start_date=${start}&end_date=${end}`;
-        if (emp) url += `&employee_number=${emp}`;
-        const response = await fetch(url, { credentials: 'include' });
-        const data = await response.json();
+        let endpoint = `/admin/get_payroll.php?start_date=${start}&end_date=${end}`;
+        if (emp) endpoint += `&employee_number=${emp}`;
+        const data = await apiGet(endpoint);
         if (data.success) {
             const rows = data.data || [];
             if (rows.length === 0) {
@@ -236,7 +227,7 @@ async function loadPayroll() {
             tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Failed to load payroll</td></tr>';
         }
     } catch (err) {
-        console.error('Error loading payroll:', err);
+        handleApiError(err, 'loading payroll');
         tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Network error</td></tr>';
     }
 }
@@ -251,11 +242,7 @@ async function searchEmployeeLocation() {
     }
     
     try {
-        const response = await fetch(`${API_BASE}/admin/get_employee_location.php?employee_number=${employeeId}&date=${date}`, {
-            credentials: 'include'
-        });
-        
-        const data = await response.json();
+        const data = await apiGet(`/admin/get_employee_location.php?employee_number=${employeeId}&date=${date}`);
         
         if (data.success) {
             displayEmployeeLocation(data.data);
@@ -264,8 +251,7 @@ async function searchEmployeeLocation() {
         }
         
     } catch (error) {
-        console.error('Error searching employee location:', error);
-        alert('Error searching employee location');
+        handleApiError(error, 'searching employee location');
     }
 }
 
@@ -384,16 +370,12 @@ async function loadAttendanceData() {
     const employeeNumber = document.getElementById('attendanceEmployeeSearch').value.trim();
     
     try {
-        let url = `${API_BASE}/admin/get_attendance.php?date=${date}`;
+        let endpoint = `/admin/get_attendance.php?date=${date}`;
         if (employeeNumber) {
-            url += `&employee_number=${employeeNumber}`;
+            endpoint += `&employee_number=${employeeNumber}`;
         }
         
-        const response = await fetch(url, {
-            credentials: 'include'
-        });
-        
-        const data = await response.json();
+        const data = await apiGet(endpoint);
         
         if (data.success) {
             const attendanceData = data.data;
@@ -408,17 +390,10 @@ async function loadAttendanceData() {
             attendanceData.forEach((record, idx) => {
                 const row = document.createElement('tr');
                 
-                // Determine status and badge color
-                let statusText = 'Present';
-                let badgeClass = 'bg-success';
-                
-                if (!record.logout_time) {
-                    statusText = 'Logged In';
-                    badgeClass = 'bg-warning';
-                } else if (record.total_hours < 4) {
-                    statusText = 'Partial';
-                    badgeClass = 'bg-info';
-                }
+                const { text: statusText, badgeClass } = getAttendanceStatusBadge({
+                    loggedOut: !!record.logout_time,
+                    totalSeconds: parseFloat(record.total_seconds || 0),
+                });
                 
                 row.innerHTML = `
                     <td>${record.employee_number}</td>
@@ -451,8 +426,7 @@ async function loadAttendanceData() {
         }
         
     } catch (error) {
-        console.error('Error loading attendance data:', error);
-        alert('Error loading attendance data. Please try again.');
+        handleApiError(error, 'loading attendance data');
     }
 }
 
@@ -487,16 +461,7 @@ async function addEmployee() {
     spinner.classList.remove('d-none');
     
     try {
-        const response = await fetch(`${API_BASE}/admin/add_employee.php`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            credentials: 'include',
-            body: JSON.stringify(employeeData)
-        });
-        
-        const data = await response.json();
+        const data = await apiPost('/admin/add_employee.php', employeeData);
         
         if (data.success) {
             alert(`Employee added successfully!\nEmployee ID: ${data.data.employee_number}\nDefault Password: ${data.data.default_password}`);
@@ -513,8 +478,7 @@ async function addEmployee() {
         }
         
     } catch (error) {
-        console.error('Error adding employee:', error);
-        alert('Network error. Please try again.');
+        handleApiError(error, 'adding employee');
     } finally {
         spinner.classList.add('d-none');
     }
@@ -522,11 +486,7 @@ async function addEmployee() {
 
 async function viewEmployee(employeeId) {
     try {
-        const response = await fetch(`${API_BASE}/admin/get_employee_details.php?employee_id=${employeeId}`, {
-            credentials: 'include'
-        });
-        
-        const data = await response.json();
+        const data = await apiGet(`/admin/get_employee_details.php?employee_id=${employeeId}`);
         
         if (data.success) {
             const employee = data.data.employee;
@@ -599,18 +559,13 @@ async function viewEmployee(employeeId) {
         }
         
     } catch (error) {
-        console.error('Error loading employee details:', error);
-        alert('Error loading employee details. Please try again.');
+        handleApiError(error, 'loading employee details');
     }
 }
 
 async function editEmployee(employeeId) {
     try {
-        const response = await fetch(`${API_BASE}/admin/get_employee_details.php?employee_id=${employeeId}`, {
-            credentials: 'include'
-        });
-        
-        const data = await response.json();
+        const data = await apiGet(`/admin/get_employee_details.php?employee_id=${employeeId}`);
         
         if (data.success) {
             const employee = data.data.employee;
@@ -637,8 +592,7 @@ async function editEmployee(employeeId) {
         }
         
     } catch (error) {
-        console.error('Error loading employee details:', error);
-        alert('Error loading employee details. Please try again.');
+        handleApiError(error, 'loading employee details');
     }
 }
 
@@ -668,16 +622,7 @@ async function updateEmployee() {
     spinner.classList.remove('d-none');
     
     try {
-        const response = await fetch(`${API_BASE}/admin/update_employee.php`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            credentials: 'include',
-            body: JSON.stringify(employeeData)
-        });
-        
-        const data = await response.json();
+        const data = await apiPost('/admin/update_employee.php', employeeData);
         
         if (data.success) {
             alert(`Employee ${data.data.name} updated successfully!`);
@@ -693,8 +638,7 @@ async function updateEmployee() {
         }
         
     } catch (error) {
-        console.error('Error updating employee:', error);
-        alert('Network error. Please try again.');
+        handleApiError(error, 'updating employee');
     } finally {
         spinner.classList.add('d-none');
     }
@@ -703,18 +647,9 @@ async function updateEmployee() {
 async function deleteEmployee(employeeId, employeeNumber) {
     if (confirm(`Are you sure you want to delete employee ${employeeNumber}?\n\nThis action cannot be undone and will remove all associated data including attendance records and GPS tracking data.`)) {
         try {
-            const response = await fetch(`${API_BASE}/admin/delete_employee.php`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include',
-                body: JSON.stringify({
-                    employee_id: employeeId
-                })
+            const data = await apiPost('/admin/delete_employee.php', {
+                employee_id: employeeId
             });
-            
-            const data = await response.json();
             
             if (data.success) {
                 alert(`Employee ${data.data.employee_number} (${data.data.name}) has been deleted successfully.`);
@@ -730,25 +665,19 @@ async function deleteEmployee(employeeId, employeeNumber) {
             }
             
         } catch (error) {
-            console.error('Error deleting employee:', error);
-            alert('Network error. Please try again.');
+            handleApiError(error, 'deleting employee');
         }
     }
 }
 
 function viewAttendanceDetailsFromButton(buttonEl, date) {
     const d = buttonEl.dataset;
-    const totalHoursRaw = parseFloat(d.totalHoursRaw || '0');
+    const totalSecondsRaw = parseFloat(d.totalHoursRaw || '0');
     const logoutPresent = d.logoutPresent === '1';
-    let statusText = 'Present';
-    let badgeClass = 'bg-success';
-    if (!logoutPresent) {
-        statusText = 'Logged In';
-        badgeClass = 'bg-warning';
-    } else if (totalHoursRaw < 4) {
-        statusText = 'Partial';
-        badgeClass = 'bg-info';
-    }
+    const { text: statusText, badgeClass } = getAttendanceStatusBadge({
+        loggedOut: logoutPresent,
+        totalSeconds: totalSecondsRaw,
+    });
 
     const content = `
         <table class="table table-sm">
@@ -768,21 +697,13 @@ function viewAttendanceDetailsFromButton(buttonEl, date) {
 
 async function viewAttendanceDetails(employeeNumber, date) {
     try {
-        const response = await fetch(`${API_BASE}/admin/get_attendance.php?date=${date}&employee_number=${employeeNumber}`, {
-            credentials: 'include'
-        });
-        const data = await response.json();
+        const data = await apiGet(`/admin/get_attendance.php?date=${date}&employee_number=${employeeNumber}`);
         if (data.success && Array.isArray(data.data) && data.data.length > 0) {
             const record = data.data[0];
-            let statusText = 'Present';
-            let badgeClass = 'bg-success';
-            if (!record.logout_time) {
-                statusText = 'Logged In';
-                badgeClass = 'bg-warning';
-            } else if (record.total_hours < 4) {
-                statusText = 'Partial';
-                badgeClass = 'bg-info';
-            }
+            const { text: statusText, badgeClass } = getAttendanceStatusBadge({
+                loggedOut: !!record.logout_time,
+                totalSeconds: parseFloat(record.total_seconds || 0),
+            });
             const content = `
                 <table class="table table-sm">
                     <tr><td><strong>Date</strong></td><td>${date}</td></tr>
@@ -801,8 +722,7 @@ async function viewAttendanceDetails(employeeNumber, date) {
             alert('No attendance details found for this entry');
         }
     } catch (error) {
-        console.error('Error loading attendance details:', error);
-        alert('Error loading attendance details. Please try again.');
+        handleApiError(error, 'loading attendance details');
     }
 }
 

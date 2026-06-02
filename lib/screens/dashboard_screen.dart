@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'dart:async';
 import '../services/api_service.dart';
 import '../services/gps_service.dart';
 import '../services/camera_service.dart';
+import '../widgets/dialogs.dart';
+import '../widgets/loading_button.dart';
+import '../widgets/info_card.dart';
 import 'login_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -107,7 +109,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       String? logoutImage = await CameraService.captureImage();
       
       if (logoutImage == null) {
-        _showErrorDialog('Failed to capture logout image');
+        showAppErrorDialog(context, 'Failed to capture logout image');
         setState(() {
           _isLoading = false;
         });
@@ -137,14 +139,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         // Show success message
         final dt = response['data'];
         final msg = 'Logout Time: ${dt['logout_time'] ?? ''}\nLogin Time: ${dt['login_time'] ?? ''}\nWork Duration: ${dt['duration_hms'] ?? (dt['total_hours']?.toString() ?? '0') + ' hours'}';
-        _showSuccessDialog('Logout Successful', msg);
+        showAppSuccessDialog(context, title: 'Logout Successful', message: msg, onDismissed: _navigateToLogin);
         
       } else {
-        _showErrorDialog(response['message'] ?? 'Logout failed');
+        showAppErrorDialog(context, response['message'] ?? 'Logout failed');
       }
       
     } catch (e) {
-      _showErrorDialog('Network error: ${e.toString()}');
+      showAppErrorDialog(context, 'Network error: ${e.toString()}');
     } finally {
       setState(() {
         _isLoading = false;
@@ -169,42 +171,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     } catch (e) {
       print('Error stopping GPS tracking: $e');
     }
-  }
-
-  void _showErrorDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Error'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showSuccessDialog(String title, String message) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _navigateToLogin();
-            },
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
   }
 
   void _navigateToLogin() {
@@ -451,60 +417,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: 16),
 
             // Info Card
-            Card(
-              elevation: 2,
-              color: Colors.blue.shade50,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      color: Colors.blue.shade700,
-                      size: 24,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Your location is being tracked every 5 minutes while you are logged in. This helps maintain accurate attendance records.',
-                      style: TextStyle(
-                        color: Colors.blue.shade700,
-                        fontSize: 12,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
+            const InfoCard(
+              message: 'Your location is being tracked every 5 minutes while you are logged in. This helps maintain accurate attendance records.',
+              color: Colors.blue,
             ),
 
             const SizedBox(height: 24),
 
             // Logout Button
-            ElevatedButton(
-              onPressed: _isLoading ? null : _logout,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: _isLoading
-                  ? const SpinKitThreeBounce(
-                      color: Colors.white,
-                      size: 20,
-                    )
-                  : const Text(
-                      'Logout',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+            LoadingButton(
+              label: 'Logout',
+              isLoading: _isLoading,
+              onPressed: _logout,
+              backgroundColor: Colors.red,
             ),
           ],
         ),
