@@ -15,6 +15,22 @@ class CameraService {
     }
   }
 
+  /// Select the front camera if available, otherwise the first one.
+  static CameraDescription _preferFrontCamera(List<CameraDescription> cameras) {
+    return cameras.firstWhere(
+      (c) => c.lensDirection == CameraLensDirection.front,
+      orElse: () => cameras.first,
+    );
+  }
+
+  /// Read a file as a base64 data-URI and delete the temporary file.
+  static Future<String> _fileToBase64DataUri(File imageFile) async {
+    final bytes = await imageFile.readAsBytes();
+    final base64 = base64Encode(bytes);
+    await imageFile.delete();
+    return 'data:image/jpeg;base64,$base64';
+  }
+
   static Future<String?> captureImage() async {
     try {
       if (_cameras == null || _cameras!.isEmpty) {
@@ -25,11 +41,7 @@ class CameraService {
         throw Exception('No cameras available');
       }
 
-      // Use front camera if available, otherwise use first camera
-      CameraDescription camera = _cameras!.firstWhere(
-        (camera) => camera.lensDirection == CameraLensDirection.front,
-        orElse: () => _cameras!.first,
-      );
+      final camera = _preferFrontCamera(_cameras!);
 
       final controller = CameraController(
         camera,
@@ -39,30 +51,15 @@ class CameraService {
 
       await controller.initialize();
 
-      // Get temporary directory
       final Directory tempDir = await getTemporaryDirectory();
       final String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
       final String imagePath = '${tempDir.path}/login_$timestamp.jpg';
 
-      // Take picture
       final XFile image = await controller.takePicture();
-      
-      // Copy to our desired path
       await image.saveTo(imagePath);
-      
-      // Dispose controller
       await controller.dispose();
 
-      // Convert image to base64
-      final File imageFile = File(imagePath);
-      final List<int> imageBytes = await imageFile.readAsBytes();
-      final String base64Image = base64Encode(imageBytes);
-
-      // Clean up temporary file
-      await imageFile.delete();
-
-      return 'data:image/jpeg;base64,$base64Image';
-      
+      return await _fileToBase64DataUri(File(imagePath));
     } catch (e) {
       print('Camera capture error: $e');
       return null;
@@ -115,11 +112,7 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
       final cameras = await availableCameras();
       if (cameras.isEmpty) return;
 
-      // Use front camera if available
-      CameraDescription camera = cameras.firstWhere(
-        (camera) => camera.lensDirection == CameraLensDirection.front,
-        orElse: () => cameras.first,
-      );
+      final camera = CameraService._preferFrontCamera(cameras);
 
       _controller = CameraController(
         camera,
@@ -148,17 +141,10 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
 
     try {
       final XFile image = await _controller!.takePicture();
-      
-      // Convert to base64
-      final File imageFile = File(image.path);
-      final List<int> imageBytes = await imageFile.readAsBytes();
-      final String base64Image = base64Encode(imageBytes);
-      
-      // Clean up
-      await imageFile.delete();
-      
+      final dataUri = await CameraService._fileToBase64DataUri(File(image.path));
+
       if (mounted) {
-        Navigator.pop(context, 'data:image/jpeg;base64,$base64Image');
+        Navigator.pop(context, dataUri);
       }
     } catch (e) {
       print('Capture error: $e');

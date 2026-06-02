@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:geolocator/geolocator.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'dart:convert';
-import 'dart:io' show Platform;
 import '../services/api_service.dart';
 import '../services/permission_service.dart';
+import '../services/location_service.dart';
+import '../utils/device_utils.dart';
+import '../widgets/loading_button.dart';
+import '../widgets/info_card.dart';
 import 'dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -46,28 +44,23 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // Get current location
-      Position? position = await _getCurrentLocation();
+      final position = await LocationService.getCurrentLocation();
 
-      // Prepare login data
       Map<String, dynamic> loginData = {
         'employee_number': _employeeNumberController.text.trim(),
         'password': _passwordController.text,
         'latitude': position?.latitude,
         'longitude': position?.longitude,
-        'device_info': await _getDeviceInfo(),
+        'device_info': DeviceUtils.getDeviceInfo(),
         'device_time_iso': DateTime.now().toIso8601String(),
         'timezone_offset_minutes': DateTime.now().timeZoneOffset.inMinutes,
       };
 
-      // Call login API
       final response = await ApiService.login(loginData);
       
       if (response['success']) {
-        // Save session data
         await ApiService.saveSessionData(response['data']);
         
-        // Navigate to dashboard
         if (mounted) {
           Navigator.pushReplacement(
             context,
@@ -93,50 +86,6 @@ class _LoginScreenState extends State<LoginScreen> {
         _isLoading = false;
       });
     }
-  }
-
-  Future<Position?> _getCurrentLocation() async {
-    try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        throw Exception('Location services are disabled');
-      }
-
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          throw Exception('Location permissions are denied');
-        }
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        throw Exception('Location permissions are permanently denied');
-      }
-
-      return await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-    } catch (e) {
-      print('Location error: $e');
-      return null;
-    }
-  }
-
-  Future<String> _getDeviceInfo() async {
-    // Check for web platform first (Platform is not available on web)
-    if (kIsWeb) {
-      return 'Web Device';
-    }
-    
-    try {
-      if (Platform.isAndroid) return 'Android Device';
-      if (Platform.isIOS) return 'iOS Device';
-    } catch (_) {
-      // Platform not supported
-    }
-    
-    return 'Unknown Device';
   }
 
   @override
@@ -306,28 +255,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       
                       // Login Button
-                      ElevatedButton(
-                        onPressed: _isLoading ? null : _login,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: _isLoading
-                            ? const SpinKitThreeBounce(
-                                color: Colors.white,
-                                size: 20,
-                              )
-                            : const Text(
-                                'Login',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                      LoadingButton(
+                        label: 'Login',
+                        isLoading: _isLoading,
+                        onPressed: _login,
                       ),
                     ],
                   ),
@@ -337,31 +268,8 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 40),
               
               // Info Text
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.amber.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.amber.shade200),
-                ),
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      color: Colors.amber.shade700,
-                      size: 24,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Your location will be captured during login for attendance tracking.',
-                      style: TextStyle(
-                        color: Colors.amber.shade700,
-                        fontSize: 12,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
+              const InfoCard(
+                message: 'Your location will be captured during login for attendance tracking.',
               ),
             ],
           ),
