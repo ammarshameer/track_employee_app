@@ -47,6 +47,6 @@ void main() {
     expect(find.byIcon(Icons.location_on), findsOneWidget);
     
     // Verify info text is present
-    expect(find.textContaining('location and photo will be captured'), findsOneWidget);
+    expect(find.textContaining('location will be captured'), findsOneWidget);
   });
 }
