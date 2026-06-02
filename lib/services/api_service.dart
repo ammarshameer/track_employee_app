@@ -9,6 +9,11 @@ class ApiService {
   static const String _desktopDefault = 'http://localhost/emp_track_2/backend/api';
   static const String _prefsKey = 'api_base_url';
 
+  /// Injectable HTTP client for testing. Falls back to default [http.Client].
+  static http.Client? httpClient;
+
+  static http.Client get _client => httpClient ?? http.Client();
+
   static Future<String> _resolveBaseUrl() async {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString(_prefsKey);
@@ -43,7 +48,7 @@ class ApiService {
   static Future<Map<String, dynamic>> login(Map<String, dynamic> loginData) async {
     try {
       final baseUrl = await _resolveBaseUrl();
-      final response = await http.post(
+      final response = await _client.post(
         Uri.parse('$baseUrl/auth/login.php'),
         headers: {
           'Content-Type': 'application/json',
@@ -72,7 +77,7 @@ class ApiService {
   static Future<Map<String, dynamic>> logout(Map<String, dynamic> logoutData) async {
     try {
       final baseUrl = await _resolveBaseUrl();
-      final response = await http.post(
+      final response = await _client.post(
         Uri.parse('$baseUrl/auth/logout.php'),
         headers: {
           'Content-Type': 'application/json',
@@ -101,7 +106,7 @@ class ApiService {
   static Future<Map<String, dynamic>> sendGPSUpdate(Map<String, dynamic> gpsData) async {
     try {
       final baseUrl = await _resolveBaseUrl();
-      final response = await http.post(
+      final response = await _client.post(
         Uri.parse('$baseUrl/tracking/gps_update.php'),
         headers: {
           'Content-Type': 'application/json',
