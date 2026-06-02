@@ -84,7 +84,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
             
         } catch (PDOException $e) {
             http_response_code(500);
-            echo json_encode(array("success" => false, "message" => "Database error: " . $e->getMessage()));
+            error_log("Get employee location DB error: " . $e->getMessage());
+            echo json_encode(array("success" => false, "message" => "An internal error occurred"));
         }
         
     } else {

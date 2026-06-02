@@ -84,12 +84,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 http_response_code(201);
                 echo json_encode(array(
                     "success" => true,
-                    "message" => "Employee added successfully",
+                    "message" => "Employee added successfully. Default password is the employee number.",
                     "data" => array(
                         "employee_id" => $employee_id,
                         "employee_number" => $employee_number,
-                        "name" => $first_name . ' ' . $last_name,
-                        "default_password" => $default_password
+                        "name" => $first_name . ' ' . $last_name
                     )
                 ));
                 
@@ -100,7 +99,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             
         } catch (PDOException $e) {
             http_response_code(500);
-            echo json_encode(array("success" => false, "message" => "Database error: " . $e->getMessage()));
+            error_log("Add employee DB error: " . $e->getMessage());
+            echo json_encode(array("success" => false, "message" => "An internal error occurred"));
         }
         
     } else {

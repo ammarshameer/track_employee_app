@@ -106,7 +106,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             
         } catch (PDOException $e) {
             http_response_code(500);
-            echo json_encode(array("success" => false, "message" => "Database error: " . $e->getMessage()));
+            error_log("Logout DB error: " . $e->getMessage());
+            echo json_encode(array("success" => false, "message" => "An internal error occurred"));
         }
         
     } else {
@@ -127,7 +128,7 @@ function saveLogoutImage($base64_image, $employee_id) {
         // Create uploads directory if it doesn't exist
         $upload_dir = '../../uploads/logout_images/' . date('Y/m/d') . '/';
         if (!file_exists($upload_dir)) {
-            mkdir($upload_dir, 0777, true);
+            mkdir($upload_dir, 0755, true);
         }
         
         // Decode base64 image

@@ -2,9 +2,18 @@
 /**
  * Database Setup Script
  * This will create the database and all required tables
+ *
+ * WARNING: This script is for local development only.
+ * It is disabled unless the ENABLE_DEBUG_ENDPOINTS environment variable
+ * is set to "true".
  */
 
-// Enable error reporting
+if (getenv('ENABLE_DEBUG_ENDPOINTS') !== 'true') {
+    http_response_code(403);
+    echo "<h2>Forbidden</h2><p>Debug endpoints are disabled in this environment.</p>";
+    exit();
+}
+
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
@@ -12,9 +21,9 @@ echo "<h2>Employee Tracking System - Database Setup</h2>";
 
 try {
     // First, connect without specifying database to create it
-    $host = "localhost";
-    $username = "root";
-    $password = "";
+    $host     = getenv('DB_HOST')     ?: 'localhost';
+    $username = getenv('DB_USERNAME')  ?: 'root';
+    $password = getenv('DB_PASSWORD')  ?: '';
     
     $pdo = new PDO("mysql:host=$host", $username, $password);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
