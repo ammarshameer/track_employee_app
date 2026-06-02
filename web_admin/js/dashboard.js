@@ -34,7 +34,12 @@ function isAuthenticated() {
 }
 
 function loadAdminData() {
-    const adminData = JSON.parse(sessionStorage.getItem('admin_data') || '{}');
+    let adminData = {};
+    try {
+        adminData = JSON.parse(sessionStorage.getItem('admin_data') || '{}');
+    } catch (e) {
+        console.error('Failed to parse admin data from session:', e);
+    }
     document.getElementById('adminName').textContent = adminData.username || 'Admin';
 }
 
@@ -101,6 +106,11 @@ async function loadDashboardStats() {
             credentials: 'include'
         });
         
+        if (!response.ok) {
+            console.error('Dashboard stats HTTP error:', response.status);
+            return;
+        }
+
         const data = await response.json();
         
         if (data.success) {
@@ -125,6 +135,11 @@ async function loadEmployees() {
         const response = await fetch(`${API_BASE}/admin/get_employees.php`, {
             credentials: 'include'
         });
+
+        if (!response.ok) {
+            alert('Failed to load employees (HTTP ' + response.status + ')');
+            return;
+        }
         
         const data = await response.json();
         
@@ -213,6 +228,10 @@ async function loadPayroll() {
         let url = `${API_BASE}/admin/get_payroll.php?start_date=${start}&end_date=${end}`;
         if (emp) url += `&employee_number=${emp}`;
         const response = await fetch(url, { credentials: 'include' });
+        if (!response.ok) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Server error (HTTP ' + response.status + ')</td></tr>';
+            return;
+        }
         const data = await response.json();
         if (data.success) {
             const rows = data.data || [];
@@ -254,6 +273,11 @@ async function searchEmployeeLocation() {
         const response = await fetch(`${API_BASE}/admin/get_employee_location.php?employee_number=${employeeId}&date=${date}`, {
             credentials: 'include'
         });
+
+        if (!response.ok) {
+            alert('Server error (HTTP ' + response.status + ')');
+            return;
+        }
         
         const data = await response.json();
         
@@ -392,6 +416,11 @@ async function loadAttendanceData() {
         const response = await fetch(url, {
             credentials: 'include'
         });
+
+        if (!response.ok) {
+            alert('Failed to load attendance data (HTTP ' + response.status + ')');
+            return;
+        }
         
         const data = await response.json();
         
@@ -495,6 +524,11 @@ async function addEmployee() {
             credentials: 'include',
             body: JSON.stringify(employeeData)
         });
+
+        if (!response.ok && response.status !== 400) {
+            alert('Server error (HTTP ' + response.status + ')');
+            return;
+        }
         
         const data = await response.json();
         
@@ -525,6 +559,11 @@ async function viewEmployee(employeeId) {
         const response = await fetch(`${API_BASE}/admin/get_employee_details.php?employee_id=${employeeId}`, {
             credentials: 'include'
         });
+
+        if (!response.ok) {
+            alert('Failed to load employee details (HTTP ' + response.status + ')');
+            return;
+        }
         
         const data = await response.json();
         
@@ -609,6 +648,11 @@ async function editEmployee(employeeId) {
         const response = await fetch(`${API_BASE}/admin/get_employee_details.php?employee_id=${employeeId}`, {
             credentials: 'include'
         });
+
+        if (!response.ok) {
+            alert('Failed to load employee details (HTTP ' + response.status + ')');
+            return;
+        }
         
         const data = await response.json();
         
@@ -676,6 +720,11 @@ async function updateEmployee() {
             credentials: 'include',
             body: JSON.stringify(employeeData)
         });
+
+        if (!response.ok && response.status !== 400 && response.status !== 404) {
+            alert('Server error (HTTP ' + response.status + ')');
+            return;
+        }
         
         const data = await response.json();
         
@@ -713,6 +762,11 @@ async function deleteEmployee(employeeId, employeeNumber) {
                     employee_id: employeeId
                 })
             });
+
+            if (!response.ok && response.status !== 404) {
+                alert('Server error (HTTP ' + response.status + ')');
+                return;
+            }
             
             const data = await response.json();
             
@@ -771,6 +825,10 @@ async function viewAttendanceDetails(employeeNumber, date) {
         const response = await fetch(`${API_BASE}/admin/get_attendance.php?date=${date}&employee_number=${employeeNumber}`, {
             credentials: 'include'
         });
+        if (!response.ok) {
+            alert('Failed to load attendance details (HTTP ' + response.status + ')');
+            return;
+        }
         const data = await response.json();
         if (data.success && Array.isArray(data.data) && data.data.length > 0) {
             const record = data.data[0];

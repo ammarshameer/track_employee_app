@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:geolocator/geolocator.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'dart:convert';
 import 'dart:io' show Platform;
 import '../services/api_service.dart';
 import '../services/permission_service.dart';
@@ -32,7 +30,14 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _requestPermissions() async {
-    await PermissionService.requestAllPermissions();
+    try {
+      final results = await PermissionService.requestAllPermissions();
+      if (results['location'] != true || results['camera'] != true) {
+        debugPrint('LoginScreen: Some permissions denied: $results');
+      }
+    } catch (e) {
+      debugPrint('LoginScreen: Error requesting permissions: $e');
+    }
   }
 
   Future<void> _login() async {
@@ -118,7 +123,7 @@ class _LoginScreenState extends State<LoginScreen> {
         desiredAccuracy: LocationAccuracy.high,
       );
     } catch (e) {
-      print('Location error: $e');
+      debugPrint('LoginScreen: Location error: $e');
       return null;
     }
   }

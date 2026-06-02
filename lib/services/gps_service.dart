@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,29 +9,24 @@ class GPSService {
   static const int updateIntervalMinutes = 5;
 
   // Send location update to server
-  static Future<void> sendLocationUpdate() async {
+  static Future<bool> sendLocationUpdate() async {
     try {
-      // Check if user is logged in
       final sessionData = await ApiService.getSessionData();
       if (sessionData == null) {
-        print('No active session for GPS tracking');
-        return;
+        debugPrint('GPSService: No active session for GPS tracking');
+        return false;
       }
 
-      // Check if enough time has passed since last update
       if (!await _shouldSendUpdate()) {
-        print('GPS update not due yet');
-        return;
+        return false;
       }
 
-      // Get current location
       Position? position = await _getCurrentLocation();
       if (position == null) {
-        print('Could not get current location');
-        return;
+        debugPrint('GPSService: Could not get current location');
+        return false;
       }
 
-      // Prepare GPS data
       Map<String, dynamic> gpsData = {
         'session_id': sessionData['session_id'],
         'latitude': position.latitude,
@@ -40,18 +36,18 @@ class GPSService {
         'altitude': position.altitude,
       };
 
-      // Send to server
       final response = await ApiService.sendGPSUpdate(gpsData);
       
-      if (response['success']) {
+      if (response['success'] == true) {
         await _updateLastUpdateTime();
-        print('GPS location updated successfully');
+        return true;
       } else {
-        print('GPS update failed: ${response['message']}');
+        debugPrint('GPSService: Update failed: ${response['message']}');
+        return false;
       }
-
     } catch (e) {
-      print('GPS service error: $e');
+      debugPrint('GPSService: Error sending location update: $e');
+      return false;
     }
   }
 
@@ -60,7 +56,7 @@ class GPSService {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        print('Location services are disabled');
+        debugPrint('GPSService: Location services are disabled');
         await Geolocator.openLocationSettings();
         return null;
       }
@@ -69,12 +65,12 @@ class GPSService {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          print('Location permissions are denied');
+          debugPrint('GPSService: Location permissions are denied');
           return null;
         }
       }
       if (permission == LocationPermission.deniedForever) {
-        print('Location permissions are permanently denied');
+        debugPrint('GPSService: Location permissions are permanently denied');
         return null;
       }
 
@@ -99,12 +95,14 @@ class GPSService {
                 forceLocationManager: true,
               ),
             ).first;
-          } catch (_) {}
+          } catch (streamError) {
+            debugPrint('GPSService: Stream fallback also failed: $streamError');
+          }
         }
         rethrow;
       }
     } catch (e) {
-      print('Location error: $e');
+      debugPrint('GPSService: Location error: $e');
       return null;
     }
   }
@@ -116,39 +114,43 @@ class GPSService {
       final lastUpdateStr = prefs.getString(_lastUpdateKey);
       
       if (lastUpdateStr == null) {
-        return true; // First update
+        return true;
       }
 
-      final lastUpdate = DateTime.parse(lastUpdateStr);
+      final lastUpdate = DateTime.tryParse(lastUpdateStr);
+      if (lastUpdate == null) {
+        debugPrint('GPSService: Invalid stored update timestamp, allowing update');
+        return true;
+      }
+
       final now = DateTime.now();
       final difference = now.difference(lastUpdate);
 
       return difference.inMinutes >= updateIntervalMinutes;
     } catch (e) {
-      print('Error checking update interval: $e');
-      return true; // Default to allowing update
+      debugPrint('GPSService: Error checking update interval: $e');
+      return true;
     }
   }
 
-  // Update the last update time
   static Future<void> _updateLastUpdateTime() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_lastUpdateKey, DateTime.now().toIso8601String());
     } catch (e) {
-      print('Error updating last update time: $e');
+      debugPrint('GPSService: Error updating last update time: $e');
     }
   }
 
   // Start continuous GPS tracking
-  static Future<void> startGPSTracking() async {
+  static Future<bool> startGPSTracking() async {
     try {
-      // Send initial update
-      await sendLocationUpdate();
-      
-      print('GPS tracking started');
+      final result = await sendLocationUpdate();
+      debugPrint('GPSService: Tracking started (initial update: $result)');
+      return result;
     } catch (e) {
-      print('Error starting GPS tracking: $e');
+      debugPrint('GPSService: Error starting GPS tracking: $e');
+      return false;
     }
   }
 
@@ -157,10 +159,10 @@ class GPSService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_lastUpdateKey);
-      
-      print('GPS tracking stopped');
+      debugPrint('GPSService: Tracking stopped');
     } catch (e) {
-      print('Error stopping GPS tracking: $e');
+      debugPrint('GPSService: Error stopping GPS tracking: $e');
+      rethrow;
     }
   }
 
