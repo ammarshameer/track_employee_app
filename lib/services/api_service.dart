@@ -54,11 +54,7 @@ class ApiService {
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
-        final errorData = json.decode(response.body);
-        return {
-          'success': false,
-          'message': errorData['message'] ?? 'Login failed',
-        };
+        return _parseErrorResponse(response.body, 'Login failed');
       }
     } catch (e) {
       return {
@@ -83,11 +79,7 @@ class ApiService {
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
-        final errorData = json.decode(response.body);
-        return {
-          'success': false,
-          'message': errorData['message'] ?? 'Logout failed',
-        };
+        return _parseErrorResponse(response.body, 'Logout failed');
       }
     } catch (e) {
       return {
@@ -112,11 +104,7 @@ class ApiService {
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
-        final errorData = json.decode(response.body);
-        return {
-          'success': false,
-          'message': errorData['message'] ?? 'GPS update failed',
-        };
+        return _parseErrorResponse(response.body, 'GPS update failed');
       }
     } catch (e) {
       return {
@@ -126,14 +114,33 @@ class ApiService {
     }
   }
 
+  static Map<String, dynamic> _parseErrorResponse(String body, String fallback) {
+    try {
+      final errorData = json.decode(body);
+      return {
+        'success': false,
+        'message': errorData['message'] ?? fallback,
+      };
+    } catch (_) {
+      return {
+        'success': false,
+        'message': fallback,
+      };
+    }
+  }
+
   // Save session data locally
   static Future<void> saveSessionData(Map<String, dynamic> sessionData) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('session_id', sessionData['session_id'] ?? '');
-    await prefs.setString('employee_id', sessionData['employee_id'].toString());
-    await prefs.setString('employee_number', sessionData['employee_number'] ?? '');
-    await prefs.setString('employee_name', sessionData['name'] ?? '');
-    await prefs.setBool('is_logged_in', true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('session_id', sessionData['session_id']?.toString() ?? '');
+      await prefs.setString('employee_id', sessionData['employee_id']?.toString() ?? '');
+      await prefs.setString('employee_number', sessionData['employee_number']?.toString() ?? '');
+      await prefs.setString('employee_name', sessionData['name']?.toString() ?? '');
+      await prefs.setBool('is_logged_in', true);
+    } catch (e) {
+      throw Exception('Failed to save session data: $e');
+    }
   }
 
   // Get session data

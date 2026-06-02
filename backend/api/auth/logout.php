@@ -10,6 +10,12 @@ include_once '../../config/database.php';
 $database = new Database();
 $db = $database->getConnection();
 
+if ($db === null) {
+    http_response_code(503);
+    echo json_encode(array("success" => false, "message" => "Database connection unavailable"));
+    exit();
+}
+
 // Get posted data
 $data = json_decode(file_get_contents("php://input"));
 
@@ -67,7 +73,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     
                     $deactivate_stmt = $db->prepare($deactivate_query);
                     $deactivate_stmt->bindParam(':session_id', $data->session_id);
-                    $deactivate_stmt->execute();
+                    if (!$deactivate_stmt->execute()) {
+                        error_log("Failed to deactivate session: " . $data->session_id);
+                    }
                     
                     $hours_query = "SELECT login_time, logout_time, total_hours, total_seconds, work_duration FROM attendance 
                                   WHERE employee_id = :employee_id 

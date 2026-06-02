@@ -10,6 +10,12 @@ include_once '../../config/database.php';
 $database = new Database();
 $db = $database->getConnection();
 
+if ($db === null) {
+    http_response_code(503);
+    echo json_encode(array("success" => false, "message" => "Database connection unavailable"));
+    exit();
+}
+
 // Get posted data
 $data = json_decode(file_get_contents("php://input"));
 
@@ -61,7 +67,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         $session_stmt->bindParam(':session_id', $session_id);
                         $session_stmt->bindParam(':employee_id', $employee['employee_id']);
                         $session_stmt->bindParam(':device_info', $data->device_info);
-                        $session_stmt->execute();
+                        
+                        if (!$session_stmt->execute()) {
+                            http_response_code(500);
+                            echo json_encode(array("success" => false, "message" => "Failed to create session"));
+                            exit();
+                        }
                         
                         // Return success response
                         http_response_code(200);

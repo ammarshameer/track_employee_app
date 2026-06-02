@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -10,8 +11,13 @@ class CameraService {
   static Future<void> initializeCameras() async {
     try {
       _cameras = await availableCameras();
+      if (_cameras != null && _cameras!.isEmpty) {
+        debugPrint('CameraService: No cameras found on device');
+      }
     } catch (e) {
-      print('Error initializing cameras: $e');
+      debugPrint('CameraService: Error initializing cameras: $e');
+      _cameras = null;
+      rethrow;
     }
   }
 
@@ -64,7 +70,7 @@ class CameraService {
       return 'data:image/jpeg;base64,$base64Image';
       
     } catch (e) {
-      print('Camera capture error: $e');
+      debugPrint('CameraService: Capture error: $e');
       return null;
     }
   }
@@ -86,7 +92,7 @@ class CameraService {
         ),
       );
     } catch (e) {
-      print('Camera UI error: $e');
+      debugPrint('CameraService: Camera UI error: $e');
       return null;
     }
   }
@@ -113,9 +119,11 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
   Future<void> _initializeCamera() async {
     try {
       final cameras = await availableCameras();
-      if (cameras.isEmpty) return;
+      if (cameras.isEmpty) {
+        debugPrint('CameraService: No cameras available on device');
+        return;
+      }
 
-      // Use front camera if available
       CameraDescription camera = cameras.firstWhere(
         (camera) => camera.lensDirection == CameraLensDirection.front,
         orElse: () => cameras.first,
@@ -135,7 +143,12 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
         });
       }
     } catch (e) {
-      print('Camera initialization error: $e');
+      debugPrint('CameraService: Camera initialization error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Camera initialization failed: $e')),
+        );
+      }
     }
   }
 
@@ -161,10 +174,15 @@ class _CameraCaptureScreenState extends State<CameraCaptureScreen> {
         Navigator.pop(context, 'data:image/jpeg;base64,$base64Image');
       }
     } catch (e) {
-      print('Capture error: $e');
-      setState(() {
-        _isCapturing = false;
-      });
+      debugPrint('CameraService: Capture error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to capture image: $e')),
+        );
+        setState(() {
+          _isCapturing = false;
+        });
+      }
     }
   }
 

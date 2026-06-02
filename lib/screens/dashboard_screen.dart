@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
@@ -62,22 +63,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _startBackgroundTracking() async {
     try {
-      // Start periodic GPS updates using Timer
       _gpsTimer = Timer.periodic(const Duration(minutes: 5), (timer) async {
-        try {
-          await GPSService.sendLocationUpdate();
-          print('GPS location updated');
-        } catch (e) {
-          print('GPS update error: $e');
+        final success = await GPSService.sendLocationUpdate();
+        if (!success) {
+          debugPrint('DashboardScreen: Periodic GPS update did not complete');
         }
       });
 
-      // Start GPS service
-      await GPSService.startGPSTracking();
-      
-      print('GPS tracking started with 5-minute intervals');
+      final started = await GPSService.startGPSTracking();
+      if (!started) {
+        debugPrint('DashboardScreen: Initial GPS tracking update did not complete');
+      }
     } catch (e) {
-      print('Error starting GPS tracking: $e');
+      debugPrint('DashboardScreen: Error starting GPS tracking: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('GPS tracking could not be started')),
+        );
+      }
     }
   }
 
@@ -90,7 +93,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         });
       }
     } catch (e) {
-      print('Error updating location: $e');
+      debugPrint('DashboardScreen: Error updating location: $e');
     }
   }
 
@@ -154,20 +157,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _stopBackgroundTracking() async {
     try {
-      // Cancel GPS timer
       _gpsTimer?.cancel();
       _gpsTimer = null;
       
-      // Stop GPS service
       await GPSService.stopGPSTracking();
       
       setState(() {
         _isTrackingActive = false;
       });
-      
-      print('GPS tracking stopped');
     } catch (e) {
-      print('Error stopping GPS tracking: $e');
+      debugPrint('DashboardScreen: Error stopping GPS tracking: $e');
     }
   }
 

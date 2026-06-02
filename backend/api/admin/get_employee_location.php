@@ -19,6 +19,12 @@ if (!isset($_SESSION['admin_id'])) {
 $database = new Database();
 $db = $database->getConnection();
 
+if ($db === null) {
+    http_response_code(503);
+    echo json_encode(array("success" => false, "message" => "Database connection unavailable"));
+    exit();
+}
+
 if ($_SERVER['REQUEST_METHOD'] == 'GET') {
     
     $employee_number = $_GET['employee_number'] ?? '';

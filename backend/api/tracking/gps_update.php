@@ -10,6 +10,12 @@ include_once '../../config/database.php';
 $database = new Database();
 $db = $database->getConnection();
 
+if ($db === null) {
+    http_response_code(503);
+    echo json_encode(array("success" => false, "message" => "Database connection unavailable"));
+    exit();
+}
+
 // Get posted data
 $data = json_decode(file_get_contents("php://input"));
 
@@ -59,7 +65,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     
                     $update_stmt = $db->prepare($update_session);
                     $update_stmt->bindParam(':session_id', $data->session_id);
-                    $update_stmt->execute();
+                    if (!$update_stmt->execute()) {
+                        error_log("Failed to update session activity for: " . $data->session_id);
+                    }
                     
                     // Return success response
                     http_response_code(200);
